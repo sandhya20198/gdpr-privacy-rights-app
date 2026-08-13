@@ -1,0 +1,7 @@
+{
+  "name": "Privacy Rights Center",
+  "app": "privacy-rights-center",
+  "build": {
+    "publish": "dist"
+  }
+}
