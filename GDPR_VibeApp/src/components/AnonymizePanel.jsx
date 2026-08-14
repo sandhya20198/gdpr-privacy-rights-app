@@ -118,7 +118,7 @@ export default function AnonymizePanel({ report, caseRef, actor, onClose, onDone
                   <span className="t-desc">
                     {result.partial
                       ? "Some records were written and others failed. Every attempt is in the audit log."
-                      : "The original name, email and phone no longer exist in the org."}
+                      : "The original name, email, phone and photo no longer exist in the org."}
                   </span>
                 </div>
               </div>

@@ -33,16 +33,6 @@ export default function SummaryBand({ report, caseRef }) {
             <span className="stat__value">{c.modulesWithData}</span>
             <span className="stat__sub">of {c.moduleCount} scanned</span>
           </div>
-          <div className="stat">
-            <span className="stat__label">Linked by lookup</span>
-            <span className="stat__value">{c.linkedRecords}</span>
-            <span className="stat__sub">{c.lookupModules} module{c.lookupModules === 1 ? "" : "s"} link here</span>
-          </div>
-          <div className="stat">
-            <span className="stat__label">Anonymizable fields</span>
-            <span className="stat__value">{c.anonymizableFields}</span>
-            <span className="stat__sub">across {report.parent ? 2 : 1} record{report.parent ? "s" : ""}</span>
-          </div>
         </div>
 
         {/* Subject identity — full-bleed tonal band, flush to the card edges */}
