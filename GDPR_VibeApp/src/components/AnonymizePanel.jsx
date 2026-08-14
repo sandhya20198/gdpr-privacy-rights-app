@@ -2,7 +2,7 @@ import React, { useEffect, useState } from "react";
 import { fn } from "../lib/vibe.js";
 import { IconX, IconAlert, IconCheck, IconEraser, IconSpinner } from "../lib/icons.jsx";
 
-const STEPS = ["Scope", "Preview", "Confirm"];
+const STEPS = ["Scope", "Confirm"];
 
 /**
  * Three-step erasure. The scope step is deliberately not expandable: the two
@@ -32,6 +32,9 @@ export default function AnonymizePanel({ report, caseRef, actor, onClose, onDone
 
   const allChanges = preview ? [...(preview.changes ?? []), ...(preview.parentChanges ?? [])] : [];
   const armed = confirmText.trim() === caseRef.trim();
+  /* Erasing now clears the same gate as booking it for later. The server refuses
+   * either way; blocking here is so the operator learns it on the first screen. */
+  const blocked = !!preview && !preview.alreadyAnonymized && preview.eligible === false;
 
   async function run() {
     setRunning(true);
@@ -103,6 +106,24 @@ export default function AnonymizePanel({ report, caseRef, actor, onClose, onDone
             </div>
           )}
 
+          {blocked && !result && (
+            <div className="banner banner--warning">
+              <IconAlert />
+              <div className="banner__body">
+                <strong>
+                  {report.contact.name}
+                  {preview.isPrimary ? " — primary contact" : " — not the primary contact"}
+                  {preview.tenantName ? ` · ${preview.tenantName}` : ""}
+                </strong>
+                <span className="t-desc">{preview.eligibilityReason}</span>
+                <span className="t-cap">
+                  Contact status: {preview.contactState || "unknown"}
+                  {preview.parentId ? ` · Tenant status: ${preview.tenantState || "unknown"}` : ""}
+                </span>
+              </div>
+            </div>
+          )}
+
           {result && (
             <div className="stack">
               <div className={`banner ${result.partial ? "banner--warning" : "banner--success"}`}>
@@ -144,13 +165,8 @@ export default function AnonymizePanel({ report, caseRef, actor, onClose, onDone
           )}
 
           {/* ---------- step 1: scope ---------- */}
-          {!loading && !result && !preview?.alreadyAnonymized && step === 0 && (
+          {!loading && !result && !preview?.alreadyAnonymized && !blocked && step === 0 && (
             <div className="stack">
-              <p className="t-desc" style={{ margin: 0 }}>
-                Erasure is limited to these two records. This is the whole blast radius — the portal
-                holds no write access to any other module.
-              </p>
-
               <div className="card">
                 <div className="section-head">
                   <span className="t-eyebrow">Will be rewritten</span>
@@ -166,88 +182,11 @@ export default function AnonymizePanel({ report, caseRef, actor, onClose, onDone
                   </div>
                 ))}
               </div>
-
-              <div className="card">
-                <div className="section-head">
-                  <span className="t-eyebrow">Excluded, and why</span>
-                  <span className="section-head__rule" />
-                </div>
-                <div className="check-row is-blocked">
-                  <input type="checkbox" disabled />
-                  <div>
-                    <div className="t-body">Linked work orders, service requests and other records</div>
-                    <div className="t-cap">
-                      Kept deliberately. They reference the contact, so they follow the pseudonym and
-                      operational history survives the erasure.
-                    </div>
-                  </div>
-                </div>
-                <div className="check-row is-blocked">
-                  <input type="checkbox" disabled />
-                  <div>
-                    <div className="t-body">Attachments</div>
-                    <div className="t-cap">Manual action required — the portal cannot delete files.</div>
-                  </div>
-                </div>
-                <div className="check-row is-blocked">
-                  <input type="checkbox" disabled />
-                  <div>
-                    <div className="t-body">Free text in descriptions, and notes</div>
-                    <div className="t-cap">
-                      Out of scope by design — a text match cannot be attributed to one person with
-                      certainty, so the portal never rewrites it.
-                    </div>
-                  </div>
-                </div>
-              </div>
             </div>
           )}
 
-          {/* ---------- step 2: preview ---------- */}
-          {!loading && !result && !preview?.alreadyAnonymized && step === 1 && (
-            <div className="stack">
-              <div className="banner">
-                <IconEraser />
-                <div className="banner__body">
-                  <strong>This contact will become {preview?.token}</strong>
-                  <span className="t-desc">
-                    Generated by the portal and unique to this contact, so two erased people never
-                    collapse into the same value. It is not editable.
-                  </span>
-                </div>
-              </div>
-
-              <div className="card">
-                <div className="section-head">
-                  <span className="t-eyebrow">{allChanges.length} fields · before → after</span>
-                  <span className="section-head__rule" />
-                </div>
-                {allChanges.map((c) => (
-                  <div className="diff" key={`${c.module}.${c.recordId}.${c.field}`}>
-                    <div style={{ minWidth: 0 }}>
-                      <div className="t-cap">{c.label}</div>
-                      <div className="diff__val t-strike t-mono">{String(c.from || "—")}</div>
-                    </div>
-                    <span className="diff__arrow">→</span>
-                    <div style={{ minWidth: 0 }}>
-                      <div className="t-cap">{c.module.replace("custom_", "")}</div>
-                      <div className="diff__val t-mono">{c.to}</div>
-                    </div>
-                  </div>
-                ))}
-              </div>
-
-              <p className="t-cap" style={{ margin: 0 }}>
-                {allChanges.length} field{allChanges.length === 1 ? "" : "s"} across{" "}
-                {new Set(allChanges.map((c) => c.recordId)).size} record
-                {new Set(allChanges.map((c) => c.recordId)).size === 1 ? "" : "s"} will be permanently
-                overwritten.
-              </p>
-            </div>
-          )}
-
-          {/* ---------- step 3: confirm ---------- */}
-          {!loading && !result && !preview?.alreadyAnonymized && step === 2 && (
+          {/* ---------- step 2: confirm ---------- */}
+          {!loading && !result && !preview?.alreadyAnonymized && !blocked && step === 1 && (
             <div className="stack">
               <div className="banner banner--warning">
                 <IconAlert />
@@ -285,6 +224,8 @@ export default function AnonymizePanel({ report, caseRef, actor, onClose, onDone
         <div className="drawer__foot">
           {result || preview?.alreadyAnonymized ? (
             <button className="fds-btn fds-btn--primary" onClick={onClose}>Done</button>
+          ) : blocked ? (
+            <button className="fds-btn fds-btn--secondary" onClick={onClose}>Close</button>
           ) : (
             <>
               <button
@@ -295,7 +236,7 @@ export default function AnonymizePanel({ report, caseRef, actor, onClose, onDone
                 {step === 0 ? "Cancel" : "Back"}
               </button>
               <span className="spacer" />
-              {step < 2 ? (
+              {step < 1 ? (
                 <button
                   className="fds-btn fds-btn--primary"
                   onClick={() => setStep(step + 1)}
@@ -305,8 +246,8 @@ export default function AnonymizePanel({ report, caseRef, actor, onClose, onDone
                 </button>
               ) : (
                 <button className="fds-btn fds-btn--danger" onClick={run} disabled={!armed || running}>
-                  {running ? <><span className="spin"><IconSpinner size={16} /></span> Erasing…</>
-                           : <><IconEraser /> Anonymize {allChanges.length} fields</>}
+                  {running ? <><span className="spin"><IconSpinner size={16} /></span> Processing…</>
+                           : <><IconEraser /> Anonymize</>}
                 </button>
               )}
             </>
