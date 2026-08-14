@@ -2,14 +2,26 @@ import React, { useState } from "react";
 import SummaryBand from "../components/SummaryBand.jsx";
 import ModuleBreakdown from "../components/ModuleBreakdown.jsx";
 import AnonymizePanel from "../components/AnonymizePanel.jsx";
-import ExportDialog from "../components/ExportDialog.jsx";
+import { exportReport } from "../lib/exportReport.js";
 import { EmptyState, PartialBanner, SuccessBanner, InfoBanner } from "../components/states.jsx";
-import { IconSearch, IconDownload, IconEraser, IconRefresh, IconCheck } from "../lib/icons.jsx";
+import { IconSearch, IconDownload, IconFile, IconEraser, IconRefresh, IconCheck } from "../lib/icons.jsx";
 
 export default function ReportPage({ report, caseRef, actor, onReset, onRescan, onAudited, onReplaceReport }) {
   const [showAnon, setShowAnon] = useState(false);
-  const [showExport, setShowExport] = useState(false);
+  const [exporting, setExporting] = useState(null);
   const [erased, setErased] = useState(null);
+
+  /* One click, one document. The guard is there so a double-click cannot write
+     two EXPORT rows to the audit log for a single intent. */
+  async function runExport(kind) {
+    if (exporting) return;
+    setExporting(kind);
+    try {
+      await exportReport({ report, caseRef, actor, kind, onAudited });
+    } finally {
+      setExporting(null);
+    }
+  }
 
   /* ---------- no contact for that address ---------- */
   if (!report.found) {
@@ -72,8 +84,21 @@ export default function ReportPage({ report, caseRef, actor, onReset, onRescan, 
           >
             <IconRefresh /> Rescan schema
           </button>
-          <button className="fds-btn fds-btn--secondary" onClick={() => setShowExport(true)}>
-            <IconDownload /> Export PDF
+          <button
+            className="fds-btn fds-btn--secondary"
+            onClick={() => runExport("dsar")}
+            disabled={!!exporting}
+            title="Prints the subject-facing response — choose “Save as PDF”"
+          >
+            <IconDownload /> {exporting === "dsar" ? "Exporting…" : "Export PDF"}
+          </button>
+          <button
+            className="fds-btn fds-btn--tertiary"
+            onClick={() => runExport("internal")}
+            disabled={!!exporting}
+            title="Prints the internal audit record for your compliance file — adds API names and schema provenance"
+          >
+            <IconFile /> {exporting === "internal" ? "Exporting…" : "Internal record"}
           </button>
           <button
             className="fds-btn fds-btn--danger"
@@ -137,16 +162,6 @@ export default function ReportPage({ report, caseRef, actor, onReset, onRescan, 
               onReplaceReport?.({ ...report, alreadyAnonymized: true });
             }
           }}
-        />
-      )}
-
-      {showExport && (
-        <ExportDialog
-          report={report}
-          caseRef={caseRef}
-          actor={actor}
-          onClose={() => setShowExport(false)}
-          onAudited={onAudited}
         />
       )}
     </div>
