@@ -1,0 +1,15 @@
+{
+  "version": "0.0.1",
+  "configurations": [
+    {
+      "name": "privacy-rights-center",
+      "runtimeExecutable": "/Users/facilio/.nvm/versions/node/v20.19.5/bin/node",
+      "runtimeArgs": [
+        "GDPR_VibeApp/node_modules/vite/bin/vite.js",
+        "GDPR_VibeApp"
+      ],
+      "autoPort": true,
+      "port": 5273
+    }
+  ]
+}

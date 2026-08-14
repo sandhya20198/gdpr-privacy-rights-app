@@ -86,6 +86,9 @@ export default function SchedulePage({ actor, onScheduled }) {
 
   return (
     <div className="stack">
+      {/* Once a date is booked the form gives way to the confirmation — the only
+          way back is "Schedule another", which resets and shows it again. */}
+      {!booked && (
       <form className="card" onSubmit={check}>
         <div className="stack">
           <div>
@@ -118,6 +121,7 @@ export default function SchedulePage({ actor, onScheduled }) {
           </button>
         </div>
       </form>
+      )}
 
       {error && (
         <div className="banner banner--error">
@@ -174,13 +178,8 @@ export default function SchedulePage({ actor, onScheduled }) {
             >
               {saving
                 ? <><span className="spin"><IconSpinner size={16} /></span> Scheduling…</>
-                : <><IconEraser /> Schedule erasure</>}
+                : <><IconEraser /> Schedule</>}
             </button>
-
-            <p className="t-cap" style={{ margin: 0 }}>
-              The criteria are checked again on the day it runs, so a tenant that reopens or a contact
-              who becomes primary stops the erasure rather than proceeding on a stale decision.
-            </p>
           </div>
         </div>
       )}

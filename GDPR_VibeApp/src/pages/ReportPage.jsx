@@ -4,7 +4,7 @@ import ModuleBreakdown from "../components/ModuleBreakdown.jsx";
 import AnonymizePanel from "../components/AnonymizePanel.jsx";
 import { exportReport } from "../lib/exportReport.js";
 import { EmptyState, PartialBanner, InfoBanner } from "../components/states.jsx";
-import { IconSearch, IconDownload, IconEraser, IconCheck } from "../lib/icons.jsx";
+import { IconSearch, IconDownload, IconEraser, IconCheck, IconAlert } from "../lib/icons.jsx";
 
 export default function ReportPage({ report, caseRef, actor, onReset, onRescan, onAudited, onReplaceReport }) {
   const [showAnon, setShowAnon] = useState(false);
@@ -65,6 +65,12 @@ export default function ReportPage({ report, caseRef, actor, onReset, onRescan, 
 
   const noLinked = report.counts.linkedRecords === 0;
 
+  /* Resolved during the search, so the answer is on the page before anyone
+     reaches for the erase button. An unresolved verdict is not treated as a
+     block — the handlers re-check and refuse on their own. */
+  const elig = report.eligibility;
+  const blocked = !!elig && elig.eligible === false && !report.alreadyAnonymized;
+
   return (
     <div className="wrap">
       <div className="stack">
@@ -88,10 +94,14 @@ export default function ReportPage({ report, caseRef, actor, onReset, onRescan, 
           <button
             className="fds-btn fds-btn--danger"
             onClick={() => setShowAnon(true)}
-            disabled={report.alreadyAnonymized || !!erased}
-            title={report.alreadyAnonymized ? "This contact is already anonymized" : "Irreversibly pseudonymise this contact"}
+            disabled={report.alreadyAnonymized || !!erased || blocked}
+            title={
+              report.alreadyAnonymized ? "This contact is already anonymized"
+                : blocked ? elig.reason
+                : "Irreversibly pseudonymise this contact"
+            }
           >
-            <IconEraser /> Anonymize…
+            <IconEraser /> Anonymize
           </button>
         </div>
 
@@ -100,6 +110,31 @@ export default function ReportPage({ report, caseRef, actor, onReset, onRescan, 
         {report.alreadyAnonymized && !erased && (
           <InfoBanner title="This contact has already been anonymized">
             Its email matches the portal&apos;s redaction pattern, so there is nothing further to erase.
+          </InfoBanner>
+        )}
+
+        {blocked && !erased && (
+          <div className="banner banner--warning">
+            <IconAlert />
+            <div className="banner__body">
+              <strong>
+                Cannot be erased yet — {report.contact.name}
+                {elig.isPrimary ? " is the primary contact" : " is not the primary contact"}
+                {elig.tenantName ? ` of ${elig.tenantName}` : ""}
+              </strong>
+              <span className="t-desc">{elig.reason}</span>
+              <span className="t-cap">
+                Contact status: {elig.contactState || "unknown"}
+                {elig.tenantId ? ` · Tenant status: ${elig.tenantState || "unknown"}` : ""}
+                {" · The report below is unaffected — disclosure is always allowed."}
+              </span>
+            </div>
+          </div>
+        )}
+
+        {elig?.eligible && !report.alreadyAnonymized && !erased && (
+          <InfoBanner title="This contact may be erased">
+            {elig.reason} Use <strong>Anonymize</strong> to do it now, or the Schedule flow to book a date.
           </InfoBanner>
         )}
 

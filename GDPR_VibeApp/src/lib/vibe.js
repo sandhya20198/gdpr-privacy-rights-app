@@ -80,6 +80,15 @@ function devMock(handler) {
           { module: T, recordId: 4830451, fields: ["primaryContactName", "primaryContactEmail", "primaryContactPhone"], ok: true },
         ],
       };
+    case "schedule-eligibility":
+      // The fixture's subject is a primary contact of an active tenant — the
+      // blocked case, so the gate is visible in dev without touching live data.
+      return {
+        contactId: 4830454, tenantId: 4830451, isPrimary: true,
+        contactState: "active", tenantState: "active", tenantName: "Acme Retail Group",
+        alreadyAnonymized: false, eligible: false,
+        reason: 'Tenant is active and cannot do this for the primary contact. "Acme Retail Group" is active — a primary contact can only be erased or scheduled once their tenant is expired.',
+      };
     case "audit-list":
       return {
         rows: [

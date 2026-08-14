@@ -140,6 +140,9 @@ export default function AnonymizePanel({ report, caseRef, actor, onClose, onDone
                     {result.partial
                       ? "Some records were written and others failed. Every attempt is in the audit log."
                       : "The original name, email, phone and photo no longer exist in the org."}
+                    {result.cancelledSchedules?.length
+                      ? ` The booked erasure ${result.cancelledSchedules.join(", ")} was cancelled — there is nothing left for it to do.`
+                      : ""}
                   </span>
                 </div>
               </div>

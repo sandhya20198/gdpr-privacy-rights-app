@@ -415,7 +415,15 @@ server.addHandler({
       throw new Error(elig.reason);
     }
 
-    return await performAnonymize(contactId, ref, actor);
+    const res: any = await performAnonymize(contactId, ref, actor);
+
+    /* The erasure has happened, so a booking for this same contact has nothing
+     * left to do: it is retired here rather than left to fire years later and
+     * find the work already done. Unconditional — a partial write still leaves
+     * the contact pseudonymised, which is all a later run would check. */
+    const cancelledSchedules = cancelPendingSchedules(contactId, ref, actor);
+
+    return { ...res, cancelledSchedules };
   },
 });
 
@@ -447,8 +455,6 @@ async function performAnonymize(contactId: number, ref: string, actor: string) {
 
     const results: any[] = [];
 
-    audit(d, { actorEmail: actor, action: "ANONYMIZE", referenceNo: ref, moduleName: CONTACT_MODULE, recordId: contactId, outcome: "started", detail: `pseudonym ${token}` });
-
     // ---- 1. the Tenant Contact record itself
     // The photo is nulled in the same write. It is reported as a changed field
     // only when one actually existed, so the result never overstates the work —
@@ -464,13 +470,9 @@ async function performAnonymize(contactId: number, ref: string, actor: string) {
           ...(hadPhoto ? { [F_PHOTO]: null } : {}),
         },
       });
-      for (const f of contactFields) {
-        audit(d, { actorEmail: actor, action: "ANONYMIZE", referenceNo: ref, moduleName: CONTACT_MODULE, recordId: contactId, fieldName: f, outcome: "success" });
-      }
       results.push({ module: CONTACT_MODULE, recordId: contactId, fields: contactFields, ok: true });
     } catch (e: any) {
       const msg = String(e?.message ?? e).slice(0, 300);
-      audit(d, { actorEmail: actor, action: "ANONYMIZE", referenceNo: ref, moduleName: CONTACT_MODULE, recordId: contactId, outcome: "failed", detail: msg });
       results.push({ module: CONTACT_MODULE, recordId: contactId, ok: false, error: msg });
     }
 
@@ -488,13 +490,9 @@ async function performAnonymize(contactId: number, ref: string, actor: string) {
             id: parentId,
             tenant: patch,
           });
-          for (const f of touched) {
-            audit(d, { actorEmail: actor, action: "ANONYMIZE", referenceNo: ref, moduleName: TENANT_MODULE, recordId: parentId, fieldName: f, outcome: "success" });
-          }
           results.push({ module: TENANT_MODULE, recordId: parentId, fields: touched, ok: true });
         } catch (e: any) {
           const msg = String(e?.message ?? e).slice(0, 300);
-          audit(d, { actorEmail: actor, action: "ANONYMIZE", referenceNo: ref, moduleName: TENANT_MODULE, recordId: parentId, outcome: "failed", detail: msg });
           results.push({ module: TENANT_MODULE, recordId: parentId, ok: false, error: msg });
         }
       } else {
@@ -502,12 +500,21 @@ async function performAnonymize(contactId: number, ref: string, actor: string) {
       }
     }
 
+    /* ---- one row per erasure, never one per field.
+     * An erasure is a single act, so it gets a single audit entry. What the
+     * per-field rows used to carry lives in the detail instead: the pseudonym,
+     * and every record written with the fields it took. Field NAMES only —
+     * the value that was erased is still never stored. */
     const failed = results.filter((r) => !r.ok).length;
+    const written = results
+      .filter((r) => r.ok && r.fields?.length)
+      .map((r) => `${r.module} #${r.recordId}: ${r.fields.join(", ")}`);
+    const errors = results.filter((r) => !r.ok).map((r) => `${r.module} #${r.recordId}: ${r.error}`);
     audit(d, {
       actorEmail: actor, action: "ANONYMIZE", referenceNo: ref,
       moduleName: CONTACT_MODULE, recordId: contactId,
       outcome: failed ? "partial" : "complete",
-      detail: `${results.length - failed}/${results.length} records written`,
+      detail: [`pseudonym ${token}`, ...written, ...errors].join(" · ").slice(0, 300),
     });
 
     return { ok: failed === 0, partial: failed > 0, token, results };
@@ -525,6 +532,42 @@ async function performAnonymize(contactId: number, ref: string, actor: string) {
 
 const SCHEDULE_TABLE = "gdpr_anonymize_schedule";
 const MAX_SCHEDULE_YEARS = 6;
+
+/**
+ * Retire every pending booking for a contact who has just been erased outright.
+ *
+ * Mirrors schedule-cancel: same status and the same SCHEDULE/cancelled audit
+ * vocabulary, so a booking retired this way reads no differently in the
+ * Scheduled list than one an operator cancelled by hand. The audit row is a
+ * SCHEDULE event, not a second ANONYMIZE one — an erasure still writes exactly
+ * one row of its own.
+ *
+ * Only `pending` rows are touched. A done, failed or already-cancelled row is
+ * history, and rewriting history is not cancelling anything.
+ *
+ * Returns the event ids it retired.
+ */
+function cancelPendingSchedules(contactId: number, ref: string, actor: string): string[] {
+  const d = db();
+  const { rows } = d.query(
+    `select event_id from ${SCHEDULE_TABLE} where contact_id = $1 and status = $2`,
+    [contactId, "pending"]
+  );
+  const detail = `superseded by immediate erasure (case ${ref})`.slice(0, 300);
+  const ids: string[] = [];
+  for (const r of rows) {
+    const eventId = String(r.event_id);
+    d.query(`update ${SCHEDULE_TABLE} set status = $1, detail = $2 where event_id = $3`,
+            ["cancelled", detail, eventId]);
+    audit(d, {
+      actorEmail: actor, action: "SCHEDULE", referenceNo: eventId,
+      moduleName: CONTACT_MODULE, recordId: contactId,
+      outcome: "cancelled", detail,
+    });
+    ids.push(eventId);
+  }
+  return ids;
+}
 
 /**
  * A state name that means "this record has run its course", even where the state

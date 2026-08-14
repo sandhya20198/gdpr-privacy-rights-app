@@ -39,8 +39,9 @@ button { font-family: inherit; }
   position: sticky; top: 0; z-index: 20;
   border-bottom: 1px solid var(--colors-borderNeutralBaseSubtle);
 }
+/* Full-bleed, unlike .wrap: the brand belongs in the corner of the window, so
+   the bar spans the viewport instead of sitting in the centred content column. */
 .topbar__inner {
-  max-width: 1180px; margin: 0 auto;
   padding: var(--spacing-containerXLarge) var(--spacing-sectionSmall);
   display: flex; align-items: center; gap: var(--spacing-sectionXSmall);
 }
