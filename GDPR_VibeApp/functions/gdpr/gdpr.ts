@@ -417,11 +417,11 @@ server.addHandler({
 
     const res: any = await performAnonymize(contactId, ref, actor);
 
-    /* A booked erasure for someone who has just been erased by hand has nothing
-     * left to do, so it is retired here rather than left to fire years later
-     * and find the work already done. Only on a clean result: a partial one
-     * leaves real fields outstanding, and the booking is the reminder. */
-    const cancelledSchedules = res?.ok ? cancelPendingSchedules(contactId, ref, actor) : [];
+    /* The erasure has happened, so a booking for this same contact has nothing
+     * left to do: it is retired here rather than left to fire years later and
+     * find the work already done. Unconditional — a partial write still leaves
+     * the contact pseudonymised, which is all a later run would check. */
+    const cancelledSchedules = cancelPendingSchedules(contactId, ref, actor);
 
     return { ...res, cancelledSchedules };
   },
@@ -541,6 +541,9 @@ const MAX_SCHEDULE_YEARS = 6;
  * Scheduled list than one an operator cancelled by hand. The audit row is a
  * SCHEDULE event, not a second ANONYMIZE one — an erasure still writes exactly
  * one row of its own.
+ *
+ * Only `pending` rows are touched. A done, failed or already-cancelled row is
+ * history, and rewriting history is not cancelling anything.
  *
  * Returns the event ids it retired.
  */
