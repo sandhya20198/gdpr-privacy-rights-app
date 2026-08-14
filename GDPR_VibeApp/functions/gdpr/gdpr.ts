@@ -256,7 +256,7 @@ server.addHandler({
 
 server.addHandler({
   name: "preview-anonymize",
-  description: "Compute exactly which fields would change, and the pseudonym that would be assigned. Performs no writes.",
+  description: "Compute exactly which fields would change, the pseudonym that would be assigned, and whether the erasure is allowed at all. Performs no writes.",
   parameters: {
     contactId: { description: "tenantcontact record id", type: "number" },
   },
@@ -302,6 +302,11 @@ server.addHandler({
       }
     }
 
+    // The verdict rides along with the scope so the drawer can refuse on its
+    // first screen rather than letting an operator type a case reference for a
+    // write the `anonymize` handler is going to reject anyway.
+    const elig: any = await evaluateEligibility(contactId);
+
     return {
       alreadyAnonymized: false,
       contactId,
@@ -311,6 +316,12 @@ server.addHandler({
       changes,
       parentChanges,
       totalFields: changes.length + parentChanges.length,
+      eligible: !!elig.eligible,
+      eligibilityReason: elig.reason ?? null,
+      isPrimary: !!elig.isPrimary,
+      contactState: elig.contactState ?? "",
+      tenantState: elig.tenantState ?? "",
+      tenantName: elig.tenantName ?? null,
     };
   },
 });
@@ -392,6 +403,18 @@ server.addHandler({
     if (String(args.confirm || "").trim() !== ref) {
       throw new Error("confirmation did not match the case reference — refusing to write");
     }
+
+    // The same gate the scheduled flow enforces. Erasing now is not a weaker act
+    // than booking it for later, so it does not get a weaker check — and the
+    // browser's copy of the verdict is never trusted.
+    const elig: any = await evaluateEligibility(contactId);
+    if (!elig.eligible && !elig.alreadyAnonymized) {
+      audit(db(), { actorEmail: actor, action: "ANONYMIZE", referenceNo: ref,
+                    moduleName: CONTACT_MODULE, recordId: contactId,
+                    outcome: "refused", detail: String(elig.reason ?? "not eligible").slice(0, 300) });
+      throw new Error(elig.reason);
+    }
+
     return await performAnonymize(contactId, ref, actor);
   },
 });
@@ -539,10 +562,13 @@ function stateOf(rec: any): string {
 }
 
 /**
- * Can this contact be scheduled for erasure?
+ * May this contact be erased — now or on a booked date?
  *
- * Primary contact  → the tenant must be closed/expired.
- * Not primary      → the contact itself must be closed/inactive.
+ * Primary contact  → the tenant must be expired/closed.
+ * Not primary      → the contact itself must be inactive/closed.
+ *
+ * Both entry points ("Now" and "Schedule") run this same check, so erasing on
+ * demand can never clear a lower bar than booking it for later.
  *
  * "Primary" is read generously: the contact's own flag OR the parent tenant
  * naming this person as its primary contact. Either marks them primary, because
@@ -602,7 +628,7 @@ async function evaluateEligibility(contactId: number) {
     }
     if (!closed.includes(tenantState)) {
       return { ...base, eligible: false,
-               reason: `Tenant is active and cannot do this for the primary contact. "${parent.name}" is ${tenantState || "not closed"} — a primary contact can only be scheduled once their tenant is expired.` };
+               reason: `Tenant is active and cannot do this for the primary contact. "${parent.name}" is ${tenantState || "not closed"} — a primary contact can only be erased or scheduled once their tenant is expired.` };
     }
     return { ...base, eligible: true, reason: "Primary contact of an expired tenant." };
   }
@@ -610,14 +636,14 @@ async function evaluateEligibility(contactId: number) {
   const closedContact = await closedStatuses(CONTACT_MODULE);
   if (!closedContact.includes(contactState)) {
     return { ...base, eligible: false,
-             reason: `This contact is ${contactState || "active"}. A non-primary contact can only be scheduled once they are inactive.` };
+             reason: `This contact is ${contactState || "active"}. A non-primary contact can only be erased or scheduled once they are inactive.` };
   }
   return { ...base, eligible: true, reason: "Non-primary, inactive contact." };
 }
 
 server.addHandler({
   name: "schedule-eligibility",
-  description: "Check whether a Tenant Contact may be scheduled for erasure. Read-only.",
+  description: "Check whether a Tenant Contact may be erased — now or on a booked date. Read-only.",
   parameters: { contactId: { description: "tenantcontact record id", type: "number" } },
   execute: async (args) => {
     const contactId = Number(args.contactId);

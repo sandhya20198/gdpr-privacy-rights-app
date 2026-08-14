@@ -46,6 +46,27 @@ button { font-family: inherit; }
 }
 /* Brand wordmark, top-left of every page. Its ink is dark purple, which reads
    correctly because the portal is pinned to the light theme. */
+/* Now / Schedule — the two erasure flows, chosen at the top of the page. */
+.modes {
+  display: inline-flex; align-self: center; gap: 2px; padding: 3px;
+  background: var(--colors-backgroundMidgroundMedium);
+  border-radius: var(--border-high);
+}
+.mode {
+  appearance: none; border: none; cursor: pointer; background: transparent;
+  padding: var(--spacing-containerLarge) var(--spacing-sectionSmall);
+  border-radius: var(--border-medium);
+  font-size: var(--typography-bodyMed14-fontSize);
+  font-weight: var(--typography-bodyMed14-fontWeight);
+  color: var(--colors-textDescription);
+}
+.mode:hover { color: var(--colors-textMain); }
+.mode.is-active {
+  background: var(--colors-backgroundContainer);
+  color: var(--colors-textMain);
+  box-shadow: 0 1px 2px rgba(25, 36, 50, .12);
+}
+
 .topbar__logo { flex: none; display: flex; align-items: center; }
 .topbar__logo img { height: 18px; width: auto; display: block; }
 .topbar__mark {
@@ -581,17 +602,6 @@ button { font-family: inherit; }
 .step.is-active .step__n { border-color: var(--colors-borderPrimaryDefault); color: var(--colors-textPrimaryDefault); }
 .step.is-done   .step__n { border-color: var(--colors-borderSemanticGreenMedium); color: var(--colors-textSemanticGreen); }
 .step__rule { width: 16px; height: 1px; background: var(--colors-borderNeutralBaseSubtle); }
-
-/* before → after diff rows */
-.diff {
-  display: grid; grid-template-columns: 1fr auto 1fr; align-items: center;
-  gap: var(--spacing-containerLarge);
-  padding: var(--spacing-containerLarge) 0;
-  border-bottom: 1px solid var(--colors-borderNeutralBaseSubtler);
-}
-.diff:last-child { border-bottom: none; }
-.diff__arrow { color: var(--colors-iconNeutralLight); font-size: var(--typography-captionReg12-fontSize); }
-.diff__val { font-size: var(--typography-bodyReg14-fontSize); word-break: break-word; }
 
 /* checkbox list */
 .check-row {

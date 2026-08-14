@@ -1,5 +1,5 @@
 import React from "react";
-import { IconSearch, IconAlert, IconCheck, IconInfo } from "../lib/icons.jsx";
+import { IconSearch, IconAlert, IconInfo } from "../lib/icons.jsx";
 
 export function EmptyState({ title, body, children, icon }) {
   return (
@@ -65,22 +65,6 @@ export function PartialBanner({ failures, onRetry }) {
             </button>
           </div>
         )}
-      </div>
-    </div>
-  );
-}
-
-export function SuccessBanner({ token, results }) {
-  const written = results?.filter((r) => r.ok) ?? [];
-  return (
-    <div className="banner banner--success">
-      <IconCheck />
-      <div className="banner__body">
-        <strong>Anonymization complete — this contact is now {token}</strong>
-        <span className="t-desc">
-          {written.length} record{written.length === 1 ? "" : "s"} rewritten. The original name, email
-          and phone no longer exist in the org and cannot be recovered from this portal.
-        </span>
       </div>
     </div>
   );

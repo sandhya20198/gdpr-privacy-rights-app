@@ -3,7 +3,7 @@ import SummaryBand from "../components/SummaryBand.jsx";
 import ModuleBreakdown from "../components/ModuleBreakdown.jsx";
 import AnonymizePanel from "../components/AnonymizePanel.jsx";
 import { exportReport } from "../lib/exportReport.js";
-import { EmptyState, PartialBanner, SuccessBanner, InfoBanner } from "../components/states.jsx";
+import { EmptyState, PartialBanner, InfoBanner } from "../components/states.jsx";
 import { IconSearch, IconDownload, IconEraser, IconCheck } from "../lib/icons.jsx";
 
 export default function ReportPage({ report, caseRef, actor, onReset, onRescan, onAudited, onReplaceReport }) {
@@ -94,8 +94,6 @@ export default function ReportPage({ report, caseRef, actor, onReset, onRescan, 
             <IconEraser /> Anonymize…
           </button>
         </div>
-
-        {erased && <SuccessBanner token={erased.token} results={erased.results} />}
 
         <PartialBanner failures={report.failures} onRetry={() => onRescan(report.email)} />
 
