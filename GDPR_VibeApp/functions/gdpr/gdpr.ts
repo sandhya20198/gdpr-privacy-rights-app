@@ -415,7 +415,15 @@ server.addHandler({
       throw new Error(elig.reason);
     }
 
-    return await performAnonymize(contactId, ref, actor);
+    const res: any = await performAnonymize(contactId, ref, actor);
+
+    /* A booked erasure for someone who has just been erased by hand has nothing
+     * left to do, so it is retired here rather than left to fire years later
+     * and find the work already done. Only on a clean result: a partial one
+     * leaves real fields outstanding, and the booking is the reminder. */
+    const cancelledSchedules = res?.ok ? cancelPendingSchedules(contactId, ref, actor) : [];
+
+    return { ...res, cancelledSchedules };
   },
 });
 
@@ -524,6 +532,39 @@ async function performAnonymize(contactId: number, ref: string, actor: string) {
 
 const SCHEDULE_TABLE = "gdpr_anonymize_schedule";
 const MAX_SCHEDULE_YEARS = 6;
+
+/**
+ * Retire every pending booking for a contact who has just been erased outright.
+ *
+ * Mirrors schedule-cancel: same status and the same SCHEDULE/cancelled audit
+ * vocabulary, so a booking retired this way reads no differently in the
+ * Scheduled list than one an operator cancelled by hand. The audit row is a
+ * SCHEDULE event, not a second ANONYMIZE one — an erasure still writes exactly
+ * one row of its own.
+ *
+ * Returns the event ids it retired.
+ */
+function cancelPendingSchedules(contactId: number, ref: string, actor: string): string[] {
+  const d = db();
+  const { rows } = d.query(
+    `select event_id from ${SCHEDULE_TABLE} where contact_id = $1 and status = $2`,
+    [contactId, "pending"]
+  );
+  const detail = `superseded by immediate erasure (case ${ref})`.slice(0, 300);
+  const ids: string[] = [];
+  for (const r of rows) {
+    const eventId = String(r.event_id);
+    d.query(`update ${SCHEDULE_TABLE} set status = $1, detail = $2 where event_id = $3`,
+            ["cancelled", detail, eventId]);
+    audit(d, {
+      actorEmail: actor, action: "SCHEDULE", referenceNo: eventId,
+      moduleName: CONTACT_MODULE, recordId: contactId,
+      outcome: "cancelled", detail,
+    });
+    ids.push(eventId);
+  }
+  return ids;
+}
 
 /**
  * A state name that means "this record has run its course", even where the state
