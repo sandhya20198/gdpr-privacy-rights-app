@@ -287,7 +287,7 @@ function buildHtml(report, caseRef, kind, actor) {
            // The primary-contact columns restate the subject's own table row,
            // so the Tenants section shows only the tenant's own data.
            records: [{ id: report.parent.id,
-                       fields: (report.parent.fields ?? []).filter((f) => !f.field.startsWith("primarycontact")) }] }]
+                       fields: (report.parent.fields ?? []).filter((f) => !/^primarycontact/i.test(f.field)) }] }]
       : []),
   ];
 

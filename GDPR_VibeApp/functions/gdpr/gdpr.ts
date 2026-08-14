@@ -17,18 +17,24 @@ const server = new StudioFunctions({ name: "gdpr" });
 
 /* ------------------------------------------------------------------ *
  * The only two modules this function is ever allowed to write to.
+ *
+ * These are the SYSTEM Tenants / Tenant Contacts modules, reached through the
+ * dedicated tenant actions (`get-tenant-contact`, `update-tenant`, …) rather
+ * than the generic custom-module ones. The org also carries custom look-alikes
+ * (`custom_tenants` / `custom_tenantcontact`); this app does not touch them.
  * ------------------------------------------------------------------ */
-const CONTACT_MODULE = "custom_tenantcontact";
-const TENANT_MODULE = "custom_tenants";
+const CONTACT_MODULE = "tenantcontact";
+const TENANT_MODULE = "tenant";
 
-const F_EMAIL = "email_custom_tenantcontact";
-const F_PHONE = "phone_custom_tenantcontact";
-const F_PARENT = "tenant_custom_tenantcontact_1";
-const F_PHOTO = "photo"; // system FILE field — the contact's photo section
+const F_EMAIL = "email";
+const F_PHONE = "phone";
+const F_PARENT = "tenant";
+const F_PRIMARY = "isPrimaryContact";
+const F_PHOTO = "avatar"; // system FILE field — the contact's photo section
 
-const T_NAME = "primarycontactname_custom_tenants";
-const T_EMAIL = "primarycontactemail_custom_tenants";
-const T_PHONE = "primarycontactphone_custom_tenants";
+const T_NAME = "primaryContactName";
+const T_EMAIL = "primaryContactEmail";
+const T_PHONE = "primaryContactPhone";
 
 const REDACTED_DOMAIN = "@redacted.invalid";
 
@@ -252,16 +258,13 @@ server.addHandler({
   name: "preview-anonymize",
   description: "Compute exactly which fields would change, and the pseudonym that would be assigned. Performs no writes.",
   parameters: {
-    contactId: { description: "custom_tenantcontact record id", type: "number" },
+    contactId: { description: "tenantcontact record id", type: "number" },
   },
   execute: async (args) => {
     const contactId = Number(args.contactId);
     if (!contactId) throw new Error("contactId is required");
 
-    const got = await callAction("facilio-cmms", "get-custom-module-record", {
-      custom_module: CONTACT_MODULE,
-      id: contactId,
-    });
+    const got = await callAction("facilio-cmms", "get-tenant-contact", { id: contactId });
     const rec = got?.data;
     if (!rec) throw new Error(`Tenant Contact ${contactId} not found`);
 
@@ -320,8 +323,7 @@ server.addHandler({
  */
 async function fetchPhoto(contactId: number): Promise<any> {
   try {
-    const got = await callAction("facilio-cmms", "list-custom-module-records", {
-      custom_module: CONTACT_MODULE,
+    const got = await callAction("facilio-cmms", "list-tenant-contacts", {
       filters: `id(is)=${contactId}`,
       select: `id,${F_PHOTO}`,
       page_size: 1,
@@ -376,7 +378,7 @@ server.addHandler({
   name: "anonymize",
   description: "Irreversibly pseudonymise a Tenant Contact and the matching primary-contact fields on its parent Tenant. Writes to no other module.",
   parameters: {
-    contactId: { description: "custom_tenantcontact record id", type: "number" },
+    contactId: { description: "tenantcontact record id", type: "number" },
     referenceNo: { description: "Case reference number", type: "string" },
     actorEmail: { description: "The admin performing the erasure", type: "string" },
     confirm: { description: "Must equal the referenceNo, proving an explicit confirmation step happened", type: "string" },
@@ -390,13 +392,20 @@ server.addHandler({
     if (String(args.confirm || "").trim() !== ref) {
       throw new Error("confirmation did not match the case reference — refusing to write");
     }
+    return await performAnonymize(contactId, ref, actor);
+  },
+});
 
+/**
+ * The erasure itself, shared by the immediate ("Now") handler and the scheduled
+ * runner. Kept as one function so a scheduled erasure can never drift from the
+ * one an operator performs by hand.
+ */
+async function performAnonymize(contactId: number, ref: string, actor: string) {
+  {
     const d = db();
 
-    const got = await callAction("facilio-cmms", "get-custom-module-record", {
-      custom_module: CONTACT_MODULE,
-      id: contactId,
-    });
+    const got = await callAction("facilio-cmms", "get-tenant-contact", { id: contactId });
     const rec = got?.data;
     if (!rec) throw new Error(`Tenant Contact ${contactId} not found`);
 
@@ -419,14 +428,18 @@ server.addHandler({
 
     // ---- 1. the Tenant Contact record itself
     // The photo is nulled in the same write. It is reported as a changed field
-    // only when one actually existed, so the result never overstates the work.
+    // only when one actually existed, so the result never overstates the work —
+    // and the key is left out of the patch entirely when there is no photo,
+    // keeping the common write to the three plain string fields.
     const hadPhoto = (await fetchPhoto(contactId)) != null;
     const contactFields = ["name", F_EMAIL, F_PHONE, ...(hadPhoto ? [F_PHOTO] : [])];
     try {
-      await callAction("facilio-cmms", "update-custom-module-record", {
-        custom_module: CONTACT_MODULE,
+      await callAction("facilio-cmms", "update-tenant-contact", {
         id: contactId,
-        record: { name: token, [F_EMAIL]: newEmail, [F_PHONE]: newPhone, [F_PHOTO]: null },
+        tenantcontact: {
+          name: token, [F_EMAIL]: newEmail, [F_PHONE]: newPhone,
+          ...(hadPhoto ? { [F_PHOTO]: null } : {}),
+        },
       });
       for (const f of contactFields) {
         audit(d, { actorEmail: actor, action: "ANONYMIZE", referenceNo: ref, moduleName: CONTACT_MODULE, recordId: contactId, fieldName: f, outcome: "success" });
@@ -448,10 +461,9 @@ server.addHandler({
 
       if (touched.length) {
         try {
-          await callAction("facilio-cmms", "update-custom-module-record", {
-            custom_module: TENANT_MODULE,
+          await callAction("facilio-cmms", "update-tenant", {
             id: parentId,
-            record: patch,
+            tenant: patch,
           });
           for (const f of touched) {
             audit(d, { actorEmail: actor, action: "ANONYMIZE", referenceNo: ref, moduleName: TENANT_MODULE, recordId: parentId, fieldName: f, outcome: "success" });
@@ -476,6 +488,304 @@ server.addHandler({
     });
 
     return { ok: failed === 0, partial: failed > 0, token, results };
+  }
+}
+
+/* ------------------------------------------------------------------ *
+ * Scheduled erasure
+ *
+ * The second flow: instead of erasing now, an operator books a date and a job
+ * performs the erasure then. Eligibility is deliberately re-checked at BOTH
+ * ends — booking time and run time — because a tenant can reopen, or a contact
+ * become primary, in the years between the two.
+ * ------------------------------------------------------------------ */
+
+const SCHEDULE_TABLE = "gdpr_anonymize_schedule";
+const MAX_SCHEDULE_YEARS = 6;
+
+/**
+ * A state name that means "this record has run its course", even where the state
+ * flow types it OPEN. The system modules need this: Tenants types Expired as
+ * REJECTED, and Tenant Contacts types active / inactive / pseudo-anonymized all
+ * as OPEN, so type alone would leave both gates permanently shut.
+ */
+const TERMINAL_STATE_NAME = /^(close|closed|expire|expired|inactive|terminated|pseudo)/;
+
+/**
+ * Which status values on a module mean "closed"? Resolved from the module's own
+ * state flow rather than hardcoded, so a state added to Tenants later counts
+ * automatically.
+ */
+async function closedStatuses(moduleName: string): Promise<string[]> {
+  try {
+    const res = await callAction("facilio-process-automation", "list-states", { moduleName });
+    return (res?.items ?? [])
+      .filter((s: any) => {
+        const type = String(s?.type ?? "").toUpperCase();
+        const status = String(s?.status ?? "").toLowerCase();
+        return type === "CLOSED" || type === "REJECTED" || TERMINAL_STATE_NAME.test(status);
+      })
+      .map((s: any) => String(s.status).toLowerCase());
+  } catch (_) {
+    return ["close", "closed", "expired", "inactive"];
+  }
+}
+
+function stateOf(rec: any): string {
+  const v = rec?.moduleState;
+  if (v == null) return "";
+  if (typeof v === "object") return String(v.status ?? v.name ?? v.displayName ?? "").toLowerCase();
+  return String(v).toLowerCase();
+}
+
+/**
+ * Can this contact be scheduled for erasure?
+ *
+ * Primary contact  → the tenant must be closed/expired.
+ * Not primary      → the contact itself must be closed/inactive.
+ *
+ * "Primary" is read generously: the contact's own flag OR the parent tenant
+ * naming this person as its primary contact. Either marks them primary, because
+ * under-detecting it would let the stricter rule be skipped.
+ */
+async function evaluateEligibility(contactId: number) {
+  const listed = await callAction("facilio-cmms", "list-tenant-contacts", {
+    filters: `id(is)=${contactId}`,
+    select: `id,name,${F_EMAIL},${F_PRIMARY},${F_PARENT},moduleState`,
+    expand: F_PARENT,
+    page_size: 1,
+  });
+  const rec = listed?.data?.[0];
+  if (!rec) throw new Error(`Tenant Contact ${contactId} not found`);
+
+  const email = String(rec[F_EMAIL] ?? "");
+  if (email.endsWith(REDACTED_DOMAIN)) {
+    return { eligible: false, alreadyAnonymized: true, contactId, tenantId: null,
+             reason: "This contact is already anonymized — there is nothing left to erase." };
+  }
+
+  const expanded = rec[F_PARENT] && typeof rec[F_PARENT] === "object" ? rec[F_PARENT] : null;
+  const tenantId = expanded ? Number(expanded.id) : null;
+
+  // The expanded lookup is projected down to a subset that omits moduleState, so
+  // the tenant is re-read on its own. Reading a blank status here would silently
+  // treat an active tenant as closed and let the primary-contact gate through.
+  let parent: any = expanded;
+  if (tenantId) {
+    try {
+      const t = await callAction("facilio-cmms", "list-tenants", {
+        filters: `id(is)=${tenantId}`,
+        select: `id,name,moduleState,${T_EMAIL}`,
+        page_size: 1,
+      });
+      if (t?.data?.[0]) parent = { ...expanded, ...t.data[0] };
+    } catch (_) { /* fall back to the expanded copy; the gate below still runs */ }
+  }
+
+  const flaggedPrimary = rec[F_PRIMARY] === true || rec[F_PRIMARY] === "true";
+  const namedOnTenant =
+    !!parent && !!email &&
+    String(parent[T_EMAIL] ?? "").trim().toLowerCase() === email.trim().toLowerCase();
+  const isPrimary = flaggedPrimary || namedOnTenant;
+
+  const contactState = stateOf(rec);
+  const tenantState = parent ? stateOf(parent) : "";
+
+  const base = { contactId, tenantId, isPrimary, contactState, tenantState,
+                 tenantName: parent?.name ?? null, alreadyAnonymized: false };
+
+  if (isPrimary) {
+    const closed = await closedStatuses(TENANT_MODULE);
+    if (!parent) {
+      return { ...base, eligible: false,
+               reason: "This contact is marked primary but has no parent Tenant, so the tenant's status cannot be verified." };
+    }
+    if (!closed.includes(tenantState)) {
+      return { ...base, eligible: false,
+               reason: `Tenant is active and cannot do this for the primary contact. "${parent.name}" is ${tenantState || "not closed"} — a primary contact can only be scheduled once their tenant is expired.` };
+    }
+    return { ...base, eligible: true, reason: "Primary contact of an expired tenant." };
+  }
+
+  const closedContact = await closedStatuses(CONTACT_MODULE);
+  if (!closedContact.includes(contactState)) {
+    return { ...base, eligible: false,
+             reason: `This contact is ${contactState || "active"}. A non-primary contact can only be scheduled once they are inactive.` };
+  }
+  return { ...base, eligible: true, reason: "Non-primary, inactive contact." };
+}
+
+server.addHandler({
+  name: "schedule-eligibility",
+  description: "Check whether a Tenant Contact may be scheduled for erasure. Read-only.",
+  parameters: { contactId: { description: "tenantcontact record id", type: "number" } },
+  execute: async (args) => {
+    const contactId = Number(args.contactId);
+    if (!contactId) throw new Error("contactId is required");
+    return await evaluateEligibility(contactId);
+  },
+});
+
+server.addHandler({
+  name: "schedule-create",
+  description: "Book a future date on which a Tenant Contact will be pseudonymised. Re-checks eligibility server-side and refuses dates beyond six years.",
+  parameters: {
+    contactId: { description: "tenantcontact record id", type: "number" },
+    scheduledFor: { description: "ISO date the erasure should run on", type: "string" },
+    actorEmail: { description: "The admin creating the schedule", type: "string" },
+  },
+  execute: async (args) => {
+    const contactId = Number(args.contactId);
+    const actor = String(args.actorEmail || "");
+    const when = new Date(String(args.scheduledFor || ""));
+    if (!contactId) throw new Error("contactId is required");
+    if (Number.isNaN(when.getTime())) throw new Error("scheduledFor must be a valid date");
+
+    const now = new Date();
+    if (when.getTime() <= now.getTime()) {
+      throw new Error("scheduledFor must be in the future — use the immediate flow to erase now");
+    }
+    const limit = new Date();
+    limit.setFullYear(limit.getFullYear() + MAX_SCHEDULE_YEARS);
+    if (when.getTime() > limit.getTime()) {
+      throw new Error(`scheduledFor cannot be more than ${MAX_SCHEDULE_YEARS} years from today`);
+    }
+
+    // Never trust the browser's check — re-run it here.
+    const elig: any = await evaluateEligibility(contactId);
+    if (!elig.eligible) throw new Error(elig.reason);
+
+    const d = db();
+    const dup = d.query(
+      `select event_id from ${SCHEDULE_TABLE} where contact_id = $1 and status = $2`,
+      [contactId, "pending"]
+    );
+    if (dup.rows.length) {
+      throw new Error(`This contact already has a pending schedule (${dup.rows[0].event_id}). Cancel it before booking another.`);
+    }
+
+    const eventId = newEventId();
+    d.query(
+      `insert into ${SCHEDULE_TABLE}
+         (event_id, contact_id, tenant_id, scheduled_for, created_at, created_by, status, executed_at, detail)
+       values ($1,$2,$3,$4,$5,$6,$7,$8,$9)`,
+      [eventId, contactId, elig.tenantId ?? null, when.toISOString(), nowIso(), actor, "pending", null, elig.reason]
+    );
+
+    audit(d, {
+      actorEmail: actor, action: "SCHEDULE", referenceNo: eventId,
+      moduleName: CONTACT_MODULE, recordId: contactId,
+      outcome: "scheduled", detail: `erasure booked for ${when.toISOString().slice(0, 10)}`,
+    });
+
+    return { ok: true, eventId, contactId, scheduledFor: when.toISOString(), status: "pending" };
+  },
+});
+
+server.addHandler({
+  name: "schedule-list",
+  description: "List booked erasures, soonest first. Returns record ids only — subject names are resolved by the caller, never stored here.",
+  parameters: { status: { description: "Filter by status (pending | done | failed | cancelled)", type: "string" } },
+  execute: async (args) => {
+    const d = db();
+    const status = String(args.status || "").trim();
+    const { rows } = status
+      ? d.query(
+          `select event_id, contact_id, tenant_id, scheduled_for, created_at, created_by, status, executed_at, detail
+             from ${SCHEDULE_TABLE} where status = $1 order by scheduled_for asc`,
+          [status]
+        )
+      : d.query(
+          `select event_id, contact_id, tenant_id, scheduled_for, created_at, created_by, status, executed_at, detail
+             from ${SCHEDULE_TABLE} where status <> $1 order by scheduled_for asc`,
+          ["seed"]
+        );
+    return { rows };
+  },
+});
+
+server.addHandler({
+  name: "schedule-cancel",
+  description: "Cancel a booked erasure that has not run yet.",
+  parameters: {
+    eventId: { description: "The schedule's event id", type: "string" },
+    actorEmail: { description: "The admin cancelling", type: "string" },
+    purge: { description: "Pass \"yes\" to delete the row outright instead of marking it cancelled", type: "string" },
+  },
+  execute: async (args) => {
+    const eventId = String(args.eventId || "").trim();
+    if (!eventId) throw new Error("eventId is required");
+    const d = db();
+
+    if (String(args.purge || "").toLowerCase() === "yes") {
+      d.query(`delete from ${SCHEDULE_TABLE} where event_id = $1`, [eventId]);
+      return { ok: true, eventId, purged: true };
+    }
+
+    const found = d.query(`select status, contact_id from ${SCHEDULE_TABLE} where event_id = $1`, [eventId]);
+    if (!found.rows.length) throw new Error(`No schedule ${eventId}`);
+    if (String(found.rows[0].status) !== "pending") {
+      throw new Error(`Schedule ${eventId} is ${found.rows[0].status} and cannot be cancelled`);
+    }
+
+    d.query(`update ${SCHEDULE_TABLE} set status = $1, detail = $2 where event_id = $3`,
+            ["cancelled", "cancelled by operator", eventId]);
+    audit(d, {
+      actorEmail: String(args.actorEmail || ""), action: "SCHEDULE", referenceNo: eventId,
+      moduleName: CONTACT_MODULE, recordId: Number(found.rows[0].contact_id),
+      outcome: "cancelled",
+    });
+    return { ok: true, eventId, status: "cancelled" };
+  },
+});
+
+server.addHandler({
+  name: "run-due-schedules",
+  description: "Run every booked erasure whose date has arrived. Intended for a recurring job; safe to call repeatedly.",
+  parameters: {},
+  execute: async () => {
+    const d = db();
+    const now = nowIso();
+    const { rows } = d.query(
+      `select event_id, contact_id, created_by from ${SCHEDULE_TABLE}
+        where status = $1 and scheduled_for <= $2 order by scheduled_for asc`,
+      ["pending", now]
+    );
+
+    const done: any[] = [];
+    for (const row of rows) {
+      const eventId = String(row.event_id);
+      const contactId = Number(row.contact_id);
+      const actor = String(row.created_by || "scheduled-job");
+      try {
+        // Years may have passed since booking, so the gate is re-checked here.
+        const elig: any = await evaluateEligibility(contactId);
+        if (!elig.eligible && !elig.alreadyAnonymized) {
+          d.query(`update ${SCHEDULE_TABLE} set status = $1, executed_at = $2, detail = $3 where event_id = $4`,
+                  ["failed", nowIso(), `no longer eligible: ${elig.reason}`.slice(0, 300), eventId]);
+          audit(d, { actorEmail: actor, action: "SCHEDULE", referenceNo: eventId,
+                     moduleName: CONTACT_MODULE, recordId: contactId,
+                     outcome: "failed", detail: "no longer eligible at run time" });
+          done.push({ eventId, contactId, ok: false, reason: "not eligible" });
+          continue;
+        }
+
+        const res: any = await performAnonymize(contactId, eventId, actor);
+        d.query(`update ${SCHEDULE_TABLE} set status = $1, executed_at = $2, detail = $3 where event_id = $4`,
+                [res.ok ? "done" : "failed", nowIso(),
+                 res.alreadyAnonymized ? "already anonymized" : `${res.results?.length ?? 0} records written`, eventId]);
+        done.push({ eventId, contactId, ok: !!res.ok });
+      } catch (e: any) {
+        const msg = String(e?.message ?? e).slice(0, 300);
+        d.query(`update ${SCHEDULE_TABLE} set status = $1, executed_at = $2, detail = $3 where event_id = $4`,
+                ["failed", nowIso(), msg, eventId]);
+        audit(d, { actorEmail: actor, action: "SCHEDULE", referenceNo: eventId,
+                   moduleName: CONTACT_MODULE, recordId: contactId, outcome: "failed", detail: msg });
+        done.push({ eventId, contactId, ok: false, error: msg });
+      }
+    }
+
+    return { ok: true, ranAt: now, considered: rows.length, results: done };
   },
 });
 

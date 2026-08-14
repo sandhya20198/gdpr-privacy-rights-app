@@ -13,8 +13,8 @@ import { IconChevronRight, IconFile, IconUser, IconBuilding, IconDatabase } from
  * Display only — the erasure flow still reads and rewrites them.
  */
 const HIDDEN_TENANT_FIELDS = new Set([
-  "primarycontactname_custom_tenants",
-  "primarycontactemail_custom_tenants",
+  "primaryContactName",
+  "primaryContactEmail",
 ]);
 
 export default function ModuleBreakdown({ report }) {
