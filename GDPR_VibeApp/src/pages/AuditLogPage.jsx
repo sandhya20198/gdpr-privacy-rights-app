@@ -12,9 +12,9 @@ const ACTION_DOT = {
 
 const OUTCOME_DOT = {
   success: "success", complete: "success", match: "success", ok: "success",
-  partial: "warning", started: "warning", skipped: "warning",
+  partial: "warning", skipped: "warning", refused: "warning",
   failed: "error",
-  "no-match": "neutral",
+  scheduled: "accent", cancelled: "neutral", "no-match": "neutral",
 };
 
 export default function AuditLogPage({ nonce }) {

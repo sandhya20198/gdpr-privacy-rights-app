@@ -56,6 +56,14 @@ export const FIXTURE = {
     ],
   },
   alreadyAnonymized: false,
+  // The subject is a primary contact of an active tenant — the blocked verdict,
+  // so the search-time gate is visible in dev without touching live data.
+  eligibility: {
+    contactId: 4830454, tenantId: 4830451, isPrimary: true,
+    contactState: "active", tenantState: "active", tenantName: "Acme Retail Group",
+    alreadyAnonymized: false, eligible: false,
+    reason: 'Tenant is active and cannot do this for the primary contact. "Acme Retail Group" is active — a primary contact can only be erased or scheduled once their tenant is expired.',
+  },
   duplicateContacts: [],
   parent: {
     id: 4830451,

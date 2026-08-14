@@ -30,7 +30,7 @@ export default function SearchPage({ onSearch, actor, onScheduled }) {
             <IconShield size={22} />
           </span>
           <h1 className="t-display" style={{ marginTop: "var(--spacing-containerLarge)" }}>
-            {mode === "now" ? "Find a person's data" : "Schedule an erasure"}
+            {mode === "now" ? "Find a person's data" : "Schedule"}
           </h1>
           <p className="t-desc" style={{ maxWidth: "52ch" }}>
             {mode === "now"

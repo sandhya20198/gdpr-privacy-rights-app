@@ -447,8 +447,6 @@ async function performAnonymize(contactId: number, ref: string, actor: string) {
 
     const results: any[] = [];
 
-    audit(d, { actorEmail: actor, action: "ANONYMIZE", referenceNo: ref, moduleName: CONTACT_MODULE, recordId: contactId, outcome: "started", detail: `pseudonym ${token}` });
-
     // ---- 1. the Tenant Contact record itself
     // The photo is nulled in the same write. It is reported as a changed field
     // only when one actually existed, so the result never overstates the work —
@@ -464,13 +462,9 @@ async function performAnonymize(contactId: number, ref: string, actor: string) {
           ...(hadPhoto ? { [F_PHOTO]: null } : {}),
         },
       });
-      for (const f of contactFields) {
-        audit(d, { actorEmail: actor, action: "ANONYMIZE", referenceNo: ref, moduleName: CONTACT_MODULE, recordId: contactId, fieldName: f, outcome: "success" });
-      }
       results.push({ module: CONTACT_MODULE, recordId: contactId, fields: contactFields, ok: true });
     } catch (e: any) {
       const msg = String(e?.message ?? e).slice(0, 300);
-      audit(d, { actorEmail: actor, action: "ANONYMIZE", referenceNo: ref, moduleName: CONTACT_MODULE, recordId: contactId, outcome: "failed", detail: msg });
       results.push({ module: CONTACT_MODULE, recordId: contactId, ok: false, error: msg });
     }
 
@@ -488,13 +482,9 @@ async function performAnonymize(contactId: number, ref: string, actor: string) {
             id: parentId,
             tenant: patch,
           });
-          for (const f of touched) {
-            audit(d, { actorEmail: actor, action: "ANONYMIZE", referenceNo: ref, moduleName: TENANT_MODULE, recordId: parentId, fieldName: f, outcome: "success" });
-          }
           results.push({ module: TENANT_MODULE, recordId: parentId, fields: touched, ok: true });
         } catch (e: any) {
           const msg = String(e?.message ?? e).slice(0, 300);
-          audit(d, { actorEmail: actor, action: "ANONYMIZE", referenceNo: ref, moduleName: TENANT_MODULE, recordId: parentId, outcome: "failed", detail: msg });
           results.push({ module: TENANT_MODULE, recordId: parentId, ok: false, error: msg });
         }
       } else {
@@ -502,12 +492,21 @@ async function performAnonymize(contactId: number, ref: string, actor: string) {
       }
     }
 
+    /* ---- one row per erasure, never one per field.
+     * An erasure is a single act, so it gets a single audit entry. What the
+     * per-field rows used to carry lives in the detail instead: the pseudonym,
+     * and every record written with the fields it took. Field NAMES only —
+     * the value that was erased is still never stored. */
     const failed = results.filter((r) => !r.ok).length;
+    const written = results
+      .filter((r) => r.ok && r.fields?.length)
+      .map((r) => `${r.module} #${r.recordId}: ${r.fields.join(", ")}`);
+    const errors = results.filter((r) => !r.ok).map((r) => `${r.module} #${r.recordId}: ${r.error}`);
     audit(d, {
       actorEmail: actor, action: "ANONYMIZE", referenceNo: ref,
       moduleName: CONTACT_MODULE, recordId: contactId,
       outcome: failed ? "partial" : "complete",
-      detail: `${results.length - failed}/${results.length} records written`,
+      detail: [`pseudonym ${token}`, ...written, ...errors].join(" · ").slice(0, 300),
     });
 
     return { ok: failed === 0, partial: failed > 0, token, results };

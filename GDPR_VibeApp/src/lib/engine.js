@@ -517,6 +517,25 @@ export async function discover(email, { onStage, force = false } = {}) {
 
   onStage?.({ key: "attachments", state: "done", count: attachmentCount });
 
+  /* ---- E. erasure eligibility ---------------------------------- *
+   * Resolved here, during the search, so the report can state up front whether
+   * this person may be erased at all — a primary contact needs an expired
+   * tenant, anyone else needs to be inactive. The same check runs again inside
+   * the erasure handlers, which are the ones that actually enforce it.
+   * A failure here must not fail the search: the verdict degrades to unknown
+   * and the drawer re-checks before it offers to write anything. */
+  onStage?.({ key: "eligibility", state: "active" });
+  let eligibility = null;
+  try {
+    eligibility = await fn("schedule-eligibility", { contactId });
+  } catch (e) {
+    failures.push({ stage: "eligibility", error: String(e?.message ?? e) });
+  }
+  onStage?.({
+    key: "eligibility", state: "done",
+    note: eligibility ? (eligibility.eligible ? "may be erased" : "blocked") : "unknown",
+  });
+
   /* ---- identity + household field tables ---------------------- */
   const contactFields = [
     { field: "name", label: "Name", value: displayValue(contact.name), klass: CLASS.DIRECT, anonymizable: "Yes" },
@@ -575,6 +594,7 @@ export async function discover(email, { onStage, force = false } = {}) {
       fields: contactFields,
     },
     alreadyAnonymized,
+    eligibility,
     duplicateContacts: duplicateContacts.map((c) => ({ id: c.id, name: displayValue(c.name) })),
     parent: parent
       ? { id: parent.id, name: displayValue(parent.name), fields: parentFields }
@@ -613,4 +633,5 @@ export const STAGES = [
   { key: "household", label: "Household (parent Tenant)" },
   { key: "linked", label: "Linked records" },
   { key: "attachments", label: "Attachments" },
+  { key: "eligibility", label: "Erasure eligibility" },
 ];
