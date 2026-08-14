@@ -7,6 +7,8 @@ import ReportPage from "./pages/ReportPage.jsx";
 import AuditLogPage from "./pages/AuditLogPage.jsx";
 import ProgressChecklist from "./components/ProgressChecklist.jsx";
 import { ErrorState } from "./components/states.jsx";
+// Under Vite's 4 KB inline limit, so this resolves to a data: URI — no network
+// request for the brand mark, in the app or in the printed report.
 import logoUrl from "./assets/facilio-logo.svg";
 
 const ORG_LABEL = "Article 17";
@@ -97,7 +99,6 @@ export default function App() {
       <header className="topbar fds-frost">
         <div className="topbar__inner">
           <span className="topbar__logo"><img src={logoUrl} alt="Facilio" /></span>
-          <span className="topbar__mark"><IconShield size={18} /></span>
           <div className="topbar__titles">
             <span className="topbar__title">Privacy Rights Center</span>
             <span className="topbar__sub">GDPR data discovery &amp; erasure for tenant contacts</span>

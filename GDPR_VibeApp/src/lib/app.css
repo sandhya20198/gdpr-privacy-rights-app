@@ -44,15 +44,10 @@ button { font-family: inherit; }
   padding: var(--spacing-containerXLarge) var(--spacing-sectionSmall);
   display: flex; align-items: center; gap: var(--spacing-sectionXSmall);
 }
-/* Brand mark. The wordmark's dark-purple ink needs a light surface, so in the
-   dark theme it sits on a white pill; in the light theme the pill is invisible
-   against the frost header. */
-.topbar__logo {
-  flex: none; display: flex; align-items: center;
-  background: #fff; border-radius: var(--border-high);
-  padding: 5px 8px;
-}
-.topbar__logo img { height: 16px; display: block; }
+/* Brand wordmark, top-left of every page. Its ink is dark purple, which reads
+   correctly because the portal is pinned to the light theme. */
+.topbar__logo { flex: none; display: flex; align-items: center; }
+.topbar__logo img { height: 18px; width: auto; display: block; }
 .topbar__mark {
   width: 32px; height: 32px; flex: none;
   display: flex; align-items: center; justify-content: center;
@@ -412,10 +407,15 @@ button { font-family: inherit; }
 .acc__body .acc__head { padding-left: var(--spacing-sectionLarge); }
 .acc__body .acc__item { border-color: var(--colors-borderNeutralBaseSubtle); }
 
-/* deepest level — the field table, full-bleed */
+/* deepest level — the field table. Indented to the same gutter as the record
+   row above it, so the table reads as content INSIDE the open accordion rather
+   than as a full-bleed block escaping it. */
 .acc__detail {
   background: var(--colors-backgroundContainer);
   border-top: 1px solid var(--colors-borderNeutralBaseSubtle);
+  /* = the record row's own left padding, plus its chevron and gap, so the Field
+     column lands directly under the record title. */
+  padding-left: calc(var(--spacing-sectionLarge) + var(--spacing-containerXLarge));
 }
 
 /* ============================================================

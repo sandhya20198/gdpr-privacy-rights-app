@@ -10,9 +10,9 @@
  */
 
 import { fn } from "./vibe.js";
-import { CONTACT_MODULE, TENANT_MODULE } from "./engine.js";
+import { CONTACT_MODULE, TENANT_MODULE, photoSrc, photoLabel } from "./engine.js";
 // ?raw inlines the SVG markup at build time, so the print document renders the
-// brand mark with no network fetch to race against print().
+// wordmark with no network fetch to race against print().
 import logoSvg from "../assets/facilio-logo.svg?raw";
 
 export const EXPORT_KINDS = {
@@ -78,8 +78,26 @@ function printDocument(html) {
     frame.contentWindow.focus();
     frame.contentWindow.print();
   };
-  if (doc.readyState === "complete") setTimeout(go, 100);
-  else frame.onload = () => setTimeout(go, 100);
+
+  // The subject photo is a remote image: printing before it decodes leaves a
+  // blank box in the PDF. Wait for every image to settle, but cap the wait so a
+  // dead URL delays the dialog rather than blocking it forever.
+  const printWhenReady = () => {
+    const imgs = [...doc.images].filter((im) => !im.complete);
+    if (!imgs.length) { setTimeout(go, 100); return; }
+    let left = imgs.length;
+    let fired = false;
+    const done = () => {
+      if (--left > 0 || fired) return;
+      fired = true;
+      setTimeout(go, 50);
+    };
+    imgs.forEach((im) => { im.addEventListener("load", done); im.addEventListener("error", done); });
+    setTimeout(() => { if (!fired) { fired = true; go(); } }, 3000);
+  };
+
+  if (doc.readyState === "complete") printWhenReady();
+  else frame.onload = printWhenReady;
 }
 
 function esc(s) {
@@ -188,9 +206,6 @@ function analyticsBand(report, internal) {
   const tiles = [
     { label: "Records held", value: c.records, sub: "incl. contact &amp; tenant" },
     { label: "Modules with data", value: c.modulesWithData, sub: `of ${c.moduleCount} scanned` },
-    { label: "Linked by lookup", value: c.linkedRecords,
-      sub: `${c.lookupModules} module${c.lookupModules === 1 ? "" : "s"} link here` },
-    { label: "Attachments", value: c.attachments, sub: "on the subject's records" },
   ];
 
   const bars = [
@@ -234,6 +249,23 @@ function analyticsBand(report, internal) {
       <div>Schema resolved</div><div>${esc(report.schemaFetchedAt ?? "—")}</div>
       <div>Failed queries</div><div>${report.failures?.length ?? 0}</div>
     </div>` : ""}`;
+}
+
+/**
+ * The subject's photo, beside their identity details — personal data the report
+ * must disclose, so it belongs where the reader identifies the person, not as a
+ * filename buried in a table cell. Falls back to naming the file when the value
+ * carries no resolvable URL.
+ */
+function photoBlock(photo) {
+  if (!photo) return "";
+  const src = photoSrc(photo);
+  return `
+    <figure class="photo">
+      ${src ? `<img src="${esc(src)}" alt="Photograph of the data subject">`
+            : `<div class="photo-none">No preview</div>`}
+      <figcaption>Photo${src ? "" : ` · ${esc(photoLabel(photo))}`}</figcaption>
+    </figure>`;
 }
 
 function buildHtml(report, caseRef, kind, actor) {
@@ -300,7 +332,7 @@ function buildHtml(report, caseRef, kind, actor) {
   table.recs .num { font-variant-numeric: tabular-nums; white-space: nowrap; }
 
   /* Analytics band */
-  .tiles { display: grid; grid-template-columns: repeat(4, 1fr); gap: 3mm; margin: 3mm 0 6mm;
+  .tiles { display: grid; grid-template-columns: repeat(2, 1fr); gap: 3mm; margin: 3mm 0 6mm;
            break-inside: avoid; page-break-inside: avoid; }
   .tile { border: 1px solid #dbdbdb; padding: 2.5mm 3mm; }
   .tile-l { font-size: 7.5pt; text-transform: uppercase; letter-spacing: .4px; color: #607796; }
@@ -314,6 +346,16 @@ function buildHtml(report, caseRef, kind, actor) {
   .bar-fill { height: 2.4mm; min-width: .8mm; background: #0024d6; border-radius: 0 1mm 1mm 0; }
   .bar-val { font-size: 9pt; font-weight: 600; color: #283648; font-variant-numeric: tabular-nums; }
   .chart-f { font-size: 8.5pt; color: #607796; margin-top: 3mm; }
+  .subject { display: flex; align-items: flex-start; gap: 6mm; margin: 3mm 0;
+             break-inside: avoid; page-break-inside: avoid; }
+  .photo { margin: 0; flex: none; width: 30mm; }
+  .photo img { width: 30mm; height: auto; max-height: 38mm; object-fit: cover;
+               border: 1px solid #dbdbdb; display: block; }
+  .photo-none { width: 30mm; height: 30mm; border: 1px solid #dbdbdb; background: #fafafa;
+                display: flex; align-items: center; justify-content: center;
+                font-size: 8pt; color: #607796; }
+  .photo figcaption { font-size: 7.5pt; text-transform: uppercase; letter-spacing: .4px;
+                      color: #607796; margin-top: 1.5mm; }
   .brand { margin-bottom: 5mm; }
   .brand svg { height: 7mm; width: auto; display: block; }
 </style></head><body>
@@ -322,13 +364,16 @@ function buildHtml(report, caseRef, kind, actor) {
   <div class="sub">${esc(caseRef)} · generated ${esc(now)}${internal ? ` · by ${esc(actor)}` : ""}</div>
 
   <h2>Subject</h2>
-  <div class="kv">
-    <div>Name</div><div>${esc(report.contact.name)}</div>
-    <div>Email</div><div>${esc(report.contact.email)}</div>
-    ${report.contact.phone ? `<div>Phone</div><div>${esc(report.contact.phone)}</div>` : ""}
-    ${report.parent ? `<div>Tenant</div><div>${esc(report.parent.name)}</div>` : ""}
-    ${internal ? `<div>Contact record</div><div>#${esc(report.contact.id)}</div>
-    ${report.parent ? `<div>Tenant record</div><div>#${esc(report.parent.id)}</div>` : ""}` : ""}
+  <div class="subject">
+    <div class="kv" style="flex:1;margin:0">
+      <div>Name</div><div>${esc(report.contact.name)}</div>
+      <div>Email</div><div>${esc(report.contact.email)}</div>
+      ${report.contact.phone ? `<div>Phone</div><div>${esc(report.contact.phone)}</div>` : ""}
+      ${report.parent ? `<div>Tenant</div><div>${esc(report.parent.name)}</div>` : ""}
+      ${internal ? `<div>Contact record</div><div>#${esc(report.contact.id)}</div>
+      ${report.parent ? `<div>Tenant record</div><div>#${esc(report.parent.id)}</div>` : ""}` : ""}
+    </div>
+    ${photoBlock(report.contact.photo)}
   </div>
 
   <h2>Summary</h2>
