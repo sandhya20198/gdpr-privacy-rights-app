@@ -55,7 +55,7 @@ export function devMockMode() {
 function devMock(handler) {
   if (!devMockMode()) return null;
   const token = "2PX952";
-  const C = "custom_tenantcontact", T = "custom_tenants";
+  const C = "tenantcontact", T = "tenant";
   switch (handler) {
     case "preview-anonymize":
       return {
@@ -63,27 +63,27 @@ function devMock(handler) {
         parentName: "Acme Retail Group", token, totalFields: 6,
         changes: [
           { module: C, recordId: 4830454, field: "name", label: "Name", from: "James Carter", to: token },
-          { module: C, recordId: 4830454, field: "email_custom_tenantcontact", label: "Email", from: "james.carter@acmeretail.example", to: "2px952@redacted.invalid" },
-          { module: C, recordId: 4830454, field: "phone_custom_tenantcontact", label: "Phone", from: "+1-555-0201", to: "+00-000-229952" },
+          { module: C, recordId: 4830454, field: "email", label: "Email", from: "james.carter@acmeretail.example", to: "2px952@redacted.invalid" },
+          { module: C, recordId: 4830454, field: "phone", label: "Phone", from: "+1-555-0201", to: "+00-000-229952" },
         ],
         parentChanges: [
-          { module: T, recordId: 4830451, field: "primarycontactname_custom_tenants", label: "Primary Contact Name", from: "James Carter", to: token },
-          { module: T, recordId: 4830451, field: "primarycontactemail_custom_tenants", label: "Primary Contact E-Mail", from: "james.carter@acmeretail.example", to: "2px952@redacted.invalid" },
-          { module: T, recordId: 4830451, field: "primarycontactphone_custom_tenants", label: "Primary Contact Phone", from: "+1-555-0201", to: "+00-000-229952" },
+          { module: T, recordId: 4830451, field: "primaryContactName", label: "Primary Contact Name", from: "James Carter", to: token },
+          { module: T, recordId: 4830451, field: "primaryContactEmail", label: "Primary Contact E-Mail", from: "james.carter@acmeretail.example", to: "2px952@redacted.invalid" },
+          { module: T, recordId: 4830451, field: "primaryContactPhone", label: "Primary Contact Phone", from: "+1-555-0201", to: "+00-000-229952" },
         ],
       };
     case "anonymize":
       return {
         ok: true, partial: false, token,
         results: [
-          { module: C, recordId: 4830454, fields: ["name", "email_custom_tenantcontact", "phone_custom_tenantcontact"], ok: true },
-          { module: T, recordId: 4830451, fields: ["primarycontactname_custom_tenants", "primarycontactemail_custom_tenants", "primarycontactphone_custom_tenants"], ok: true },
+          { module: C, recordId: 4830454, fields: ["name", "email", "phone"], ok: true },
+          { module: T, recordId: 4830451, fields: ["primaryContactName", "primaryContactEmail", "primaryContactPhone"], ok: true },
         ],
       };
     case "audit-list":
       return {
         rows: [
-          { event_id: "E3", occurred_at: new Date().toISOString(), actor_email: "admin@article17.test", action: "ANONYMIZE", reference_no: "PRC-20260813-DEMO", module_name: C, record_id: 4830454, field_name: "email_custom_tenantcontact", outcome: "success", detail: null },
+          { event_id: "E3", occurred_at: new Date().toISOString(), actor_email: "admin@article17.test", action: "ANONYMIZE", reference_no: "PRC-20260813-DEMO", module_name: C, record_id: 4830454, field_name: "email", outcome: "success", detail: null },
           { event_id: "E2", occurred_at: new Date(Date.now() - 6e4).toISOString(), actor_email: "admin@article17.test", action: "EXPORT", reference_no: "PRC-20260813-DEMO", module_name: null, record_id: null, field_name: null, outcome: "dsar-response", detail: "7 records across 4 modules" },
           { event_id: "E1", occurred_at: new Date(Date.now() - 12e4).toISOString(), actor_email: "admin@article17.test", action: "SEARCH", reference_no: "PRC-20260813-DEMO", module_name: null, record_id: null, field_name: null, outcome: "match", detail: "7 records across 4 modules" },
         ],

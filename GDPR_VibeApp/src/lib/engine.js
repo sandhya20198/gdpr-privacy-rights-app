@@ -8,22 +8,29 @@
 
 import { action, rowsOf, countOf, mapLimit, fn } from "./vibe.js";
 
-export const CONTACT_MODULE = "custom_tenantcontact";
-export const TENANT_MODULE = "custom_tenants";
+/**
+ * The SYSTEM Tenants / Tenant Contacts modules — not the custom look-alikes.
+ * Both live in this org, but the system pair is the one the product writes to,
+ * so its field names are plain (`email`, not `email_custom_tenantcontact`) and
+ * it is read through the dedicated tenant actions rather than the generic
+ * custom-module ones.
+ */
+export const CONTACT_MODULE = "tenantcontact";
+export const TENANT_MODULE = "tenant";
 
-export const F_EMAIL = "email_custom_tenantcontact";
-export const F_PHONE = "phone_custom_tenantcontact";
-export const F_PRIMARY = "isprimarycontact_custom_tenantcontact";
-export const F_PARENT = "tenant_custom_tenantcontact_1";
+export const F_EMAIL = "email";
+export const F_PHONE = "phone";
+export const F_PRIMARY = "isPrimaryContact";
+export const F_PARENT = "tenant";
 /** System FILE field on Tenant Contact — the "photo section". Not in the
  *  default projection, so it must be selected explicitly. */
-export const F_PHOTO = "photo";
+export const F_PHOTO = "avatar";
 
-const T_NAME = "primarycontactname_custom_tenants";
-const T_EMAIL = "primarycontactemail_custom_tenants";
-const T_PHONE = "primarycontactphone_custom_tenants";
-const T_ADDRESS = "address_custom_tenants";
-const T_TYPE = "tenanttype_custom_tenants";
+const T_NAME = "primaryContactName";
+const T_EMAIL = "primaryContactEmail";
+const T_PHONE = "primaryContactPhone";
+const T_ADDRESS = "address";
+const T_TYPE = "tenantType";
 
 const CACHE_MAX_AGE_MS = 24 * 60 * 60 * 1000;
 const SWEEP_CONCURRENCY = 8;
@@ -105,7 +112,8 @@ export async function sweepSchema({ onProgress } = {}) {
   });
 
   linked.sort((a, b) => a.displayName.localeCompare(b.displayName));
-  return { moduleCount: modules.length, linked, failures, sweptAt: new Date().toISOString() };
+  return { moduleCount: modules.length, linked, failures, contactModule: CONTACT_MODULE,
+           sweptAt: new Date().toISOString() };
 }
 
 /** Cached map, refreshing only when stale or forced. */
@@ -113,7 +121,9 @@ export async function getLookupMap({ force = false, onProgress } = {}) {
   if (!force) {
     try {
       const cached = await fn("cache-get", {});
-      if (cached?.found && cached.payload?.linked) {
+      // A map swept for a different contact module lists lookup fields that no
+      // longer resolve — it must be re-swept, not merely aged out.
+      if (cached?.found && cached.payload?.linked && cached.payload.contactModule === CONTACT_MODULE) {
         const age = Date.now() - new Date(cached.fetchedAt).getTime();
         if (Number.isFinite(age) && age < CACHE_MAX_AGE_MS) {
           return { ...cached.payload, moduleCount: cached.moduleCount, fromCache: true, fetchedAt: cached.fetchedAt };
@@ -127,7 +137,8 @@ export async function getLookupMap({ force = false, onProgress } = {}) {
   const swept = await sweepSchema({ onProgress });
   try {
     await fn("cache-put", {
-      payload: JSON.stringify({ linked: swept.linked, failures: swept.failures, sweptAt: swept.sweptAt }),
+      payload: JSON.stringify({ linked: swept.linked, failures: swept.failures,
+                                contactModule: swept.contactModule, sweptAt: swept.sweptAt }),
       moduleCount: swept.moduleCount,
     });
   } catch (_) {
@@ -210,6 +221,21 @@ export function photoLabel(v) {
   return typeof v === "string" && !/^(https?:|data:)/.test(v) ? v : "On file";
 }
 
+/**
+ * The system Tenant's address is a LOOKUP to a location record, so it arrives as
+ * an object. Render the parts that carry meaning; a location holding nothing but
+ * ids and coordinates is reported as absent rather than as "#3439107".
+ */
+function addressLabel(v) {
+  if (!v) return null;
+  if (typeof v === "string") return v;
+  if (typeof v !== "object") return String(v);
+  const parts = [v.name, v.street, v.city, v.state, v.zip, v.country]
+    .map((p) => (p == null ? "" : String(p).trim()))
+    .filter(Boolean);
+  return parts.length ? parts.join(", ") : null;
+}
+
 function fmtDate(v) {
   if (!v) return null;
   const d = new Date(v);
@@ -274,6 +300,54 @@ function recordTitle(record, moduleName) {
   );
 }
 
+/**
+ * Resolve a contact by email — identity only.
+ *
+ * The scheduling flow needs the record id and nothing else, so it deliberately
+ * skips the module sweep that discover() performs; booking a date is not a
+ * disclosure and should not cost a 70-module scan.
+ */
+export async function findContactByEmail(email) {
+  const clean = String(email || "").trim();
+  if (!clean) return null;
+  const payload = await action("facilio-cmms", "list-tenant-contacts", {
+    filters: `${F_EMAIL}(is)=${clean}`,
+    select: `id,name,${F_EMAIL},${F_PRIMARY},${F_PARENT},moduleState`,
+    expand: F_PARENT,
+    page_size: 5,
+  });
+  const rows = rowsOf(payload);
+  if (!rows.length) return null;
+  const c = rows[0];
+  const parent = c[F_PARENT] && typeof c[F_PARENT] === "object" ? c[F_PARENT] : null;
+  return {
+    id: c.id,
+    name: displayValue(c.name),
+    email: String(c[F_EMAIL] ?? ""),
+    tenantName: parent ? displayValue(parent.name) : null,
+    duplicates: rows.length - 1,
+  };
+}
+
+/** Names for a set of contact ids, for the scheduled list. Resolved live so no
+ *  subject name is ever written to the app database. */
+export async function contactNames(ids) {
+  const unique = [...new Set(ids.filter((n) => Number.isFinite(Number(n))))];
+  const out = new Map();
+  await mapLimit(unique, 6, async (id) => {
+    try {
+      const payload = await action("facilio-cmms", "list-tenant-contacts", {
+        filters: `id(is)=${id}`,
+        select: `id,name,${F_EMAIL}`,
+        page_size: 1,
+      });
+      const r = rowsOf(payload)[0];
+      if (r) out.set(Number(id), { name: displayValue(r.name), email: String(r[F_EMAIL] ?? "") });
+    } catch (_) { /* a name that will not resolve simply shows as the id */ }
+  });
+  return out;
+}
+
 /* ------------------------------------------------------------------ *
  * Discovery
  * ------------------------------------------------------------------ */
@@ -303,8 +377,7 @@ export async function discover(email, { onStage, force = false } = {}) {
 
   /* ---- A. identity --------------------------------------------- */
   onStage?.({ key: "identity", state: "active" });
-  const idPayload = await action("facilio-cmms", "list-custom-module-records", {
-    custom_module: CONTACT_MODULE,
+  const idPayload = await action("facilio-cmms", "list-tenant-contacts", {
     filters: `${F_EMAIL}(is)=${clean}`,
     select: `id,name,${F_EMAIL},${F_PHONE},${F_PRIMARY},${F_PARENT},${F_PHOTO},sysCreatedTime,sysModifiedTime`,
     expand: F_PARENT,
@@ -329,7 +402,18 @@ export async function discover(email, { onStage, force = false } = {}) {
 
   /* ---- B. household ------------------------------------------- */
   onStage?.({ key: "household", state: "active" });
-  const parent = contact[F_PARENT] && typeof contact[F_PARENT] === "object" ? contact[F_PARENT] : null;
+  let parent = contact[F_PARENT] && typeof contact[F_PARENT] === "object" ? contact[F_PARENT] : null;
+  // An expanded lookup is projected down — its `moduleState` arrives as a bare
+  // {id}, which would print as "#187637". Re-read the tenant on its own so the
+  // household table shows resolved values.
+  if (parent?.id) {
+    try {
+      const t = await action("facilio-cmms", "get-tenant", { id: Number(parent.id) });
+      if (t?.data) parent = { ...parent, ...t.data };
+    } catch (e) {
+      failures.push({ stage: "household", module: TENANT_MODULE, recordId: parent.id, error: String(e?.message ?? e) });
+    }
+  }
   onStage?.({ key: "household", state: "done", count: parent ? 1 : 0 });
 
   /* ---- C. linked records, in EVERY module the resolver found --- */
@@ -457,7 +541,7 @@ export async function discover(email, { onStage, force = false } = {}) {
           anonymizable: sameStr(parent[T_EMAIL], contact[F_EMAIL]) ? "Yes" : "No — differs from this contact" },
         { field: T_PHONE, label: "Primary Contact Phone", value: displayValue(parent[T_PHONE]), klass: CLASS.DIRECT,
           anonymizable: sameStr(parent[T_PHONE], contact[F_PHONE]) ? "Yes" : "No — differs from this contact" },
-        { field: T_ADDRESS, label: "Address", value: displayValue(parent[T_ADDRESS]), klass: CLASS.INDIRECT, anonymizable: "No" },
+        { field: T_ADDRESS, label: "Address", value: addressLabel(parent[T_ADDRESS]), klass: CLASS.INDIRECT, anonymizable: "No" },
         { field: T_TYPE, label: "Tenant Type", value: displayValue(parent[T_TYPE]), klass: CLASS.META, anonymizable: "No" },
         { field: "name", label: "Tenant Name", value: displayValue(parent.name), klass: CLASS.INDIRECT, anonymizable: "No" },
       ].filter((r) => r.value !== null)

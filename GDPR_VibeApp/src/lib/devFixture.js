@@ -15,7 +15,7 @@ import { CLASS } from "./engine.js";
 const D = CLASS.DIRECT, I = CLASS.INDIRECT, C = CLASS.CONTENT, M = CLASS.META;
 
 const woFields = (subject, desc) => [
-  { field: "tenantcontact_workorder", label: "Tenant Contact", value: "James Carter · james.carter@acmeretail.example", klass: D, anonymizable: "Via contact record", note: "The lookup that put this record in the report. Erasing the contact updates what resolves here." },
+  { field: "tenant_contact_workorder", label: "Tenant Contact", value: "James Carter · james.carter@acmeretail.example", klass: D, anonymizable: "Via contact record", note: "The lookup that put this record in the report. Erasing the contact updates what resolves here." },
   { field: "siteId", label: "Site", value: "site-A", klass: I, anonymizable: "No" },
   { field: "subject", label: "Subject", value: subject, klass: C, anonymizable: "No", note: "Shown for completeness. The portal never matches on or modifies free text." },
   { field: "description", label: "Description", value: desc, klass: C, anonymizable: "No", note: "Shown for completeness. The portal never matches on or modifies free text." },
@@ -25,7 +25,7 @@ const woFields = (subject, desc) => [
 ];
 
 const srFields = (subject, desc) => [
-  { field: "tenantcontact_serviceRequest", label: "Tenant Contact", value: "James Carter · james.carter@acmeretail.example", klass: D, anonymizable: "Via contact record", note: "The lookup that put this record in the report. Erasing the contact updates what resolves here." },
+  { field: "tenantcontactsystem_serviceRequest", label: "Tenant Contact", value: "James Carter · james.carter@acmeretail.example", klass: D, anonymizable: "Via contact record", note: "The lookup that put this record in the report. Erasing the contact updates what resolves here." },
   { field: "site", label: "Site", value: "site-A", klass: I, anonymizable: "No" },
   { field: "subject", label: "Subject", value: subject, klass: C, anonymizable: "No", note: "Shown for completeness. The portal never matches on or modifies free text." },
   { field: "description", label: "Description", value: desc, klass: C, anonymizable: "No", note: "Shown for completeness. The portal never matches on or modifies free text." },
@@ -46,11 +46,11 @@ export const FIXTURE = {
     isPrimary: true,
     fields: [
       { field: "name", label: "Name", value: "James Carter", klass: D, anonymizable: "Yes" },
-      { field: "email_custom_tenantcontact", label: "Email", value: "james.carter@acmeretail.example", klass: D, anonymizable: "Yes" },
-      { field: "phone_custom_tenantcontact", label: "Phone", value: "+1-555-0201", klass: D, anonymizable: "Yes" },
-      { field: "photo", label: "Photo", value: "james-carter.jpg", klass: D, anonymizable: "Yes — removed" },
-      { field: "isprimarycontact_custom_tenantcontact", label: "Is Primary Contact", value: "Yes", klass: M, anonymizable: "No" },
-      { field: "tenant_custom_tenantcontact_1", label: "Related Tenant", value: "Acme Retail Group", klass: I, anonymizable: "No" },
+      { field: "email", label: "Email", value: "james.carter@acmeretail.example", klass: D, anonymizable: "Yes" },
+      { field: "phone", label: "Phone", value: "+1-555-0201", klass: D, anonymizable: "Yes" },
+      { field: "avatar", label: "Photo", value: "james-carter.jpg", klass: D, anonymizable: "Yes — removed" },
+      { field: "isPrimaryContact", label: "Is Primary Contact", value: "Yes", klass: M, anonymizable: "No" },
+      { field: "tenant", label: "Related Tenant", value: "Acme Retail Group", klass: I, anonymizable: "No" },
       { field: "sysCreatedTime", label: "Created", value: "13 Aug 2026", klass: M, anonymizable: "No" },
       { field: "sysModifiedTime", label: "Modified", value: "13 Aug 2026", klass: M, anonymizable: "No" },
     ],
@@ -61,11 +61,11 @@ export const FIXTURE = {
     id: 4830451,
     name: "Acme Retail Group",
     fields: [
-      { field: "primarycontactname_custom_tenants", label: "Primary Contact Name", value: "James Carter", klass: D, anonymizable: "Yes" },
-      { field: "primarycontactemail_custom_tenants", label: "Primary Contact E-Mail", value: "james.carter@acmeretail.example", klass: D, anonymizable: "Yes" },
-      { field: "primarycontactphone_custom_tenants", label: "Primary Contact Phone", value: "+1-555-0201", klass: D, anonymizable: "Yes" },
-      { field: "address_custom_tenants", label: "Address", value: "100 Market St, Suite 1, Springfield", klass: I, anonymizable: "No" },
-      { field: "tenanttype_custom_tenants", label: "Tenant Type", value: "Commercial", klass: M, anonymizable: "No" },
+      { field: "primaryContactName", label: "Primary Contact Name", value: "James Carter", klass: D, anonymizable: "Yes" },
+      { field: "primaryContactEmail", label: "Primary Contact E-Mail", value: "james.carter@acmeretail.example", klass: D, anonymizable: "Yes" },
+      { field: "primaryContactPhone", label: "Primary Contact Phone", value: "+1-555-0201", klass: D, anonymizable: "Yes" },
+      { field: "address", label: "Address", value: "100 Market St, Suite 1, Springfield", klass: I, anonymizable: "No" },
+      { field: "tenantType", label: "Tenant Type", value: "Commercial", klass: M, anonymizable: "No" },
       { field: "name", label: "Tenant Name", value: "Acme Retail Group", klass: I, anonymizable: "No" },
     ],
   },
@@ -74,26 +74,26 @@ export const FIXTURE = {
       module: "serviceRequest",
       displayName: "Service Requests",
       isCustom: false,
-      lookupFields: [{ name: "tenantcontact_serviceRequest", displayName: "Tenant Contact" }],
+      lookupFields: [{ name: "tenantcontactsystem_serviceRequest", displayName: "Tenant Contact" }],
       records: [
-        { id: 210410, title: "Request for cleaning service", state: "Open", created: "2026-08-13T10:28:51Z", via: ["tenantcontact_serviceRequest"], attachments: [], attachmentsScanned: true, fields: srFields("Request for cleaning service", "Requested by James Carter (Acme Retail Group) at site-A") },
-        { id: 210404, title: "Request for pest control service", state: "Open", created: "2026-08-13T10:28:51Z", via: ["tenantcontact_serviceRequest"], attachments: [], attachmentsScanned: true, fields: srFields("Request for pest control service", "Requested by James Carter (Acme Retail Group) at site-A") },
-        { id: 210402, title: "Request for extra trash bins", state: "Open", created: "2026-08-13T10:28:50Z", via: ["tenantcontact_serviceRequest"], attachments: [], attachmentsScanned: true, fields: srFields("Request for extra trash bins", "Requested by James Carter (Acme Retail Group) at site-A") },
+        { id: 210410, title: "Request for cleaning service", state: "Open", created: "2026-08-13T10:28:51Z", via: ["tenantcontactsystem_serviceRequest"], attachments: [], attachmentsScanned: true, fields: srFields("Request for cleaning service", "Requested by James Carter (Acme Retail Group) at site-A") },
+        { id: 210404, title: "Request for pest control service", state: "Open", created: "2026-08-13T10:28:51Z", via: ["tenantcontactsystem_serviceRequest"], attachments: [], attachmentsScanned: true, fields: srFields("Request for pest control service", "Requested by James Carter (Acme Retail Group) at site-A") },
+        { id: 210402, title: "Request for extra trash bins", state: "Open", created: "2026-08-13T10:28:50Z", via: ["tenantcontactsystem_serviceRequest"], attachments: [], attachmentsScanned: true, fields: srFields("Request for extra trash bins", "Requested by James Carter (Acme Retail Group) at site-A") },
       ],
     },
     {
       module: "workorder",
       displayName: "Work Orders",
       isCustom: false,
-      lookupFields: [{ name: "tenantcontact_workorder", displayName: "Tenant Contact" }],
+      lookupFields: [{ name: "tenant_contact_workorder", displayName: "Tenant Contact" }],
       records: [
         {
           id: 14294695, title: "Ceiling tile water damage", state: "Submitted", created: "2026-08-13T11:16:30Z",
-          via: ["tenantcontact_workorder"], attachmentsScanned: true,
+          via: ["tenant_contact_workorder"], attachmentsScanned: true,
           attachments: [{ id: 991, name: "carter-ceiling-damage.jpg", size: 284310, uploadedBy: "Article 17", at: "2026-08-13T11:20:00Z" }],
           fields: woFields("Ceiling tile water damage", "Reported by James Carter (Acme Retail Group) at site-A"),
         },
-        { id: 14294691, title: "Parking lot pothole repair", state: "Submitted", created: "2026-08-13T11:16:25Z", via: ["tenantcontact_workorder"], attachments: [], attachmentsScanned: true, fields: woFields("Parking lot pothole repair", "Reported by James Carter (Acme Retail Group) at site-A") },
+        { id: 14294691, title: "Parking lot pothole repair", state: "Submitted", created: "2026-08-13T11:16:25Z", via: ["tenant_contact_workorder"], attachments: [], attachmentsScanned: true, fields: woFields("Parking lot pothole repair", "Reported by James Carter (Acme Retail Group) at site-A") },
       ],
     },
   ],
@@ -120,7 +120,7 @@ export const FIXTURE_EDGE = {
   counts: { ...FIXTURE.counts, records: 2, linkedRecords: 0, modulesWithData: 2, attachments: 0 },
   retention: { open: 0, closed: 0, oldestMonths: null },
   failures: [
-    { stage: "linked", module: "workorder", field: "tenantcontact_workorder", error: "upstream timeout after 10s" },
+    { stage: "linked", module: "workorder", field: "tenant_contact_workorder", error: "upstream timeout after 10s" },
   ],
   modulesWithoutAttachmentSupport: ["Inspections"],
 };
