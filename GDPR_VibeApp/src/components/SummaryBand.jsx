@@ -13,7 +13,6 @@ export default function SummaryBand({ report, caseRef }) {
     <div className="fds-widget">
       <div className="fds-widget__header">
         <div className="row" style={{ minWidth: 0 }}>
-          <span className="t-eyebrow">Case</span>
           <span className="t-mono t-body">{caseRef}</span>
         </div>
         <span className="t-cap-d nowrap">

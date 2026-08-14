@@ -187,6 +187,29 @@ function displayValue(v) {
   return String(v);
 }
 
+/**
+ * A FILE field's value shape is not documented and no contact in this org has a
+ * photo yet, so both helpers are deliberately tolerant: any recognisable URL
+ * renders as an image, anything else degrades to a label. Neither ever throws.
+ */
+export function photoSrc(v) {
+  if (!v) return null;
+  if (typeof v === "string") return /^(https?:|data:)/.test(v) ? v : null;
+  if (typeof v === "object") {
+    for (const k of ["url", "downloadUrl", "previewUrl", "src", "filePath", "downloadUrl2"]) {
+      const c = v[k];
+      if (typeof c === "string" && /^(https?:|data:)/.test(c)) return c;
+    }
+  }
+  return null;
+}
+
+export function photoLabel(v) {
+  if (!v) return null;
+  if (typeof v === "object") return String(v.fileName ?? v.name ?? (v.id != null ? `file #${v.id}` : "On file"));
+  return typeof v === "string" && !/^(https?:|data:)/.test(v) ? v : "On file";
+}
+
 function fmtDate(v) {
   if (!v) return null;
   const d = new Date(v);
@@ -415,8 +438,7 @@ export async function discover(email, { onStage, force = false } = {}) {
     { field: "name", label: "Name", value: displayValue(contact.name), klass: CLASS.DIRECT, anonymizable: "Yes" },
     { field: F_EMAIL, label: "Email", value: displayValue(contact[F_EMAIL]), klass: CLASS.DIRECT, anonymizable: "Yes" },
     { field: F_PHONE, label: "Phone", value: displayValue(contact[F_PHONE]), klass: CLASS.DIRECT, anonymizable: "Yes" },
-    { field: F_PHOTO, label: "Photo",
-      value: contact[F_PHOTO] != null ? (displayValue(contact[F_PHOTO]) ?? "On file") : null,
+    { field: F_PHOTO, label: "Photo", value: photoLabel(contact[F_PHOTO]),
       klass: CLASS.DIRECT, anonymizable: "Yes — removed" },
     { field: F_PRIMARY, label: "Is Primary Contact", value: displayValue(contact[F_PRIMARY]), klass: CLASS.META, anonymizable: "No" },
     { field: F_PARENT, label: "Related Tenant", value: displayValue(parent), klass: CLASS.INDIRECT, anonymizable: "No" },
@@ -464,6 +486,7 @@ export async function discover(email, { onStage, force = false } = {}) {
       name: displayValue(contact.name),
       email: subjectEmail,
       phone: displayValue(contact[F_PHONE]),
+      photo: contact[F_PHOTO] ?? null,
       isPrimary: !!contact[F_PRIMARY],
       fields: contactFields,
     },

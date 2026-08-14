@@ -40,6 +40,9 @@ export const FIXTURE = {
     name: "James Carter",
     email: "james.carter@acmeretail.example",
     phone: "+1-555-0201",
+    // Stand-in URL: no contact in the org has a photo yet, so this exists only so
+    // the photo path can be seen rendering in dev.
+    photo: { id: 77001, fileName: "james-carter.jpg", url: "https://static.facilio.com/common/facilio-dark-logo.svg" },
     isPrimary: true,
     fields: [
       { field: "name", label: "Name", value: "James Carter", klass: D, anonymizable: "Yes" },

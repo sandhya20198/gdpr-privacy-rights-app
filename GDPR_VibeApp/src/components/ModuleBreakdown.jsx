@@ -7,6 +7,16 @@ import { IconChevronRight, IconFile, IconUser, IconBuilding, IconDatabase } from
  * Accordion at both levels: at most one module and one record open at a time, so
  * expanding never turns the page into a wall.
  */
+/**
+ * Primary-contact fields on the parent Tenant that the breakdown does not show:
+ * they restate the subject's own Tenant Contact record, listed one module above.
+ * Display only — the erasure flow still reads and rewrites them.
+ */
+const HIDDEN_TENANT_FIELDS = new Set([
+  "primarycontactname_custom_tenants",
+  "primarycontactemail_custom_tenants",
+]);
+
 export default function ModuleBreakdown({ report }) {
   const [openModule, setOpenModule] = useState(null);
 
@@ -38,7 +48,7 @@ export default function ModuleBreakdown({ report }) {
               id: report.parent.id,
               title: report.parent.name,
               state: null,
-              fields: report.parent.fields,
+              fields: (report.parent.fields ?? []).filter((f) => !HIDDEN_TENANT_FIELDS.has(f.field)),
               attachments: null,
               attachmentsScanned: false,
             },
@@ -198,8 +208,6 @@ function FieldTable({ record }) {
             <tr>
               <th>Field</th>
               <th>Value held</th>
-              <th>Classification</th>
-              <th>Anonymizable</th>
             </tr>
           </thead>
           <tbody>
@@ -209,17 +217,6 @@ function FieldTable({ record }) {
                 <td>
                   <span className={f.klass === CLASS.DIRECT ? "t-body t-mono" : "t-desc"}>{f.value}</span>
                   {f.note && <div className="t-cap" style={{ marginTop: 2 }}>{f.note}</div>}
-                </td>
-                <td className="nowrap">
-                  <span className="row">
-                    <span className={`dot dot--${CLASS_DOT[f.klass]}`} />
-                    <span className="t-desc">{f.klass}</span>
-                  </span>
-                </td>
-                <td className="nowrap">
-                  {f.anonymizable === "Yes"
-                    ? <span className="row"><span className="dot dot--success" /><span className="t-desc">Yes</span></span>
-                    : <span className="t-cap">{f.anonymizable}</span>}
                 </td>
               </tr>
             ))}
