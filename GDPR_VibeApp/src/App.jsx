@@ -5,6 +5,7 @@ import { IconShield, IconSearch, IconList } from "./lib/icons.jsx";
 import SearchPage from "./pages/SearchPage.jsx";
 import ReportPage from "./pages/ReportPage.jsx";
 import AuditLogPage from "./pages/AuditLogPage.jsx";
+import ScheduledListPage from "./pages/ScheduledListPage.jsx";
 import ProgressChecklist from "./components/ProgressChecklist.jsx";
 import { ErrorState } from "./components/states.jsx";
 // Under Vite's 4 KB inline limit, so this resolves to a data: URI — no network
@@ -34,6 +35,7 @@ export default function App() {
   const [error, setError] = useState(null);
   const [caseRef, setCaseRef] = useState("");
   const [auditNonce, setAuditNonce] = useState(0);
+  const [scheduleNonce, setScheduleNonce] = useState(0);
 
   useEffect(() => {
     vibe.getCurrentUser().then((u) => {
@@ -101,7 +103,7 @@ export default function App() {
           <span className="topbar__logo"><img src={logoUrl} alt="Facilio" /></span>
           <div className="topbar__titles">
             <span className="topbar__title">Privacy Rights Center</span>
-            <span className="topbar__sub">GDPR data discovery &amp; erasure for tenant contacts</span>
+            <span className="topbar__sub">GDPR data discovery for tenant contacts</span>
           </div>
 
           <span className="topbar__spacer" />
@@ -113,6 +115,13 @@ export default function App() {
               aria-current={tab === "discovery" ? "page" : undefined}
             >
               Discovery
+            </button>
+            <button
+              className={`tab ${tab === "scheduled" ? "is-active" : ""}`}
+              onClick={() => setTab("scheduled")}
+              aria-current={tab === "scheduled" ? "page" : undefined}
+            >
+              Scheduled
             </button>
             <button
               className={`tab ${tab === "audit" ? "is-active" : ""}`}
@@ -133,8 +142,20 @@ export default function App() {
       <main className="page">
         {tab === "audit" && <AuditLogPage nonce={auditNonce} />}
 
+        {tab === "scheduled" && (
+          <ScheduledListPage
+            actor={actor}
+            nonce={scheduleNonce}
+            onChanged={() => setAuditNonce((n) => n + 1)}
+          />
+        )}
+
         {tab === "discovery" && phase === "idle" && (
-          <SearchPage onSearch={runSearch} actor={actor} />
+          <SearchPage
+            onSearch={runSearch}
+            actor={actor}
+            onScheduled={() => { setScheduleNonce((n) => n + 1); setAuditNonce((n) => n + 1); }}
+          />
         )}
 
         {tab === "discovery" && phase === "running" && (
