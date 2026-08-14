@@ -20,6 +20,8 @@ const woFields = (subject, desc) => [
   { field: "subject", label: "Subject", value: subject, klass: C, anonymizable: "No", note: "Shown for completeness. The portal never matches on or modifies free text." },
   { field: "description", label: "Description", value: desc, klass: C, anonymizable: "No", note: "Shown for completeness. The portal never matches on or modifies free text." },
   { field: "createdTime", label: "Created Time", value: "13 Aug 2026", klass: M, anonymizable: "No" },
+  { field: "sysModifiedTime", label: "System Modified Time", value: "13 Aug 2026", klass: M, anonymizable: "No" },
+  { field: "sysCreatedBy", label: "System Created By", value: "Article 17", klass: M, anonymizable: "No" },
 ];
 
 const srFields = (subject, desc) => [
@@ -43,9 +45,11 @@ export const FIXTURE = {
       { field: "name", label: "Name", value: "James Carter", klass: D, anonymizable: "Yes" },
       { field: "email_custom_tenantcontact", label: "Email", value: "james.carter@acmeretail.example", klass: D, anonymizable: "Yes" },
       { field: "phone_custom_tenantcontact", label: "Phone", value: "+1-555-0201", klass: D, anonymizable: "Yes" },
+      { field: "photo", label: "Photo", value: "james-carter.jpg", klass: D, anonymizable: "Yes — removed" },
       { field: "isprimarycontact_custom_tenantcontact", label: "Is Primary Contact", value: "Yes", klass: M, anonymizable: "No" },
       { field: "tenant_custom_tenantcontact_1", label: "Related Tenant", value: "Acme Retail Group", klass: I, anonymizable: "No" },
       { field: "sysCreatedTime", label: "Created", value: "13 Aug 2026", klass: M, anonymizable: "No" },
+      { field: "sysModifiedTime", label: "Modified", value: "13 Aug 2026", klass: M, anonymizable: "No" },
     ],
   },
   alreadyAnonymized: false,

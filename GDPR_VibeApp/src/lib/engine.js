@@ -15,6 +15,9 @@ export const F_EMAIL = "email_custom_tenantcontact";
 export const F_PHONE = "phone_custom_tenantcontact";
 export const F_PRIMARY = "isprimarycontact_custom_tenantcontact";
 export const F_PARENT = "tenant_custom_tenantcontact_1";
+/** System FILE field on Tenant Contact — the "photo section". Not in the
+ *  default projection, so it must be selected explicitly. */
+export const F_PHOTO = "photo";
 
 const T_NAME = "primarycontactname_custom_tenants";
 const T_EMAIL = "primarycontactemail_custom_tenants";
@@ -176,6 +179,7 @@ function displayValue(v) {
   if (typeof v === "object") {
     if (v.name) return String(v.name);
     if (v.displayName) return String(v.displayName);
+    if (v.fileName) return String(v.fileName);
     if (v.email) return String(v.email);
     if (v.id) return `#${v.id}`;
     return null;
@@ -279,7 +283,7 @@ export async function discover(email, { onStage, force = false } = {}) {
   const idPayload = await action("facilio-cmms", "list-custom-module-records", {
     custom_module: CONTACT_MODULE,
     filters: `${F_EMAIL}(is)=${clean}`,
-    select: `id,name,${F_EMAIL},${F_PHONE},${F_PRIMARY},${F_PARENT},sysCreatedTime,sysModifiedTime`,
+    select: `id,name,${F_EMAIL},${F_PHONE},${F_PRIMARY},${F_PARENT},${F_PHOTO},sysCreatedTime,sysModifiedTime`,
     expand: F_PARENT,
     include_count: true,
     page_size: 20,
@@ -411,6 +415,9 @@ export async function discover(email, { onStage, force = false } = {}) {
     { field: "name", label: "Name", value: displayValue(contact.name), klass: CLASS.DIRECT, anonymizable: "Yes" },
     { field: F_EMAIL, label: "Email", value: displayValue(contact[F_EMAIL]), klass: CLASS.DIRECT, anonymizable: "Yes" },
     { field: F_PHONE, label: "Phone", value: displayValue(contact[F_PHONE]), klass: CLASS.DIRECT, anonymizable: "Yes" },
+    { field: F_PHOTO, label: "Photo",
+      value: contact[F_PHOTO] != null ? (displayValue(contact[F_PHOTO]) ?? "On file") : null,
+      klass: CLASS.DIRECT, anonymizable: "Yes — removed" },
     { field: F_PRIMARY, label: "Is Primary Contact", value: displayValue(contact[F_PRIMARY]), klass: CLASS.META, anonymizable: "No" },
     { field: F_PARENT, label: "Related Tenant", value: displayValue(parent), klass: CLASS.INDIRECT, anonymizable: "No" },
     { field: "sysCreatedTime", label: "Created", value: fmtDate(contact.sysCreatedTime), klass: CLASS.META, anonymizable: "No" },

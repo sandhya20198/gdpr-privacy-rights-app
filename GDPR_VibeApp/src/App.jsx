@@ -1,32 +1,28 @@
 import React, { useEffect, useState, useCallback } from "react";
 import { vibe, fn, devMockMode } from "./lib/vibe.js";
 import { discover, STAGES } from "./lib/engine.js";
-import { IconShield, IconSearch, IconList, IconSun, IconMoon } from "./lib/icons.jsx";
+import { IconShield, IconSearch, IconList } from "./lib/icons.jsx";
 import SearchPage from "./pages/SearchPage.jsx";
 import ReportPage from "./pages/ReportPage.jsx";
 import AuditLogPage from "./pages/AuditLogPage.jsx";
 import ProgressChecklist from "./components/ProgressChecklist.jsx";
 import { ErrorState } from "./components/states.jsx";
+import logoUrl from "./assets/facilio-logo.svg";
 
 const ORG_LABEL = "Article 17";
 
-function useTheme() {
-  const [theme, setTheme] = useState(() => localStorage.getItem("prc-theme") || "system");
+/** The portal always renders in light mode — the OS preference is ignored and
+ *  there is no toggle. Pinning the attribute overrides the tokens file's
+ *  prefers-color-scheme fallback. */
+function useLightTheme() {
   useEffect(() => {
-    const root = document.documentElement;
-    if (theme === "system") root.removeAttribute("data-theme");
-    else root.setAttribute("data-theme", theme);
-    localStorage.setItem("prc-theme", theme);
-  }, [theme]);
-  const isDark =
-    theme === "dark" ||
-    (theme === "system" && window.matchMedia?.("(prefers-color-scheme: dark)").matches);
-  return { theme, setTheme, isDark };
+    document.documentElement.setAttribute("data-theme", "light");
+  }, []);
 }
 
 export default function App() {
   const [tab, setTab] = useState("discovery");
-  const { setTheme, isDark } = useTheme();
+  useLightTheme();
   const [actor, setActor] = useState("");
 
   // discovery flow: idle → running → report | empty | error
@@ -100,6 +96,7 @@ export default function App() {
     <div className="app">
       <header className="topbar fds-frost">
         <div className="topbar__inner">
+          <span className="topbar__logo"><img src={logoUrl} alt="Facilio" /></span>
           <span className="topbar__mark"><IconShield size={18} /></span>
           <div className="topbar__titles">
             <span className="topbar__title">Privacy Rights Center</span>
@@ -129,14 +126,6 @@ export default function App() {
             <span className="dot dot--success" /> {ORG_LABEL}
           </span>
 
-          <button
-            className="icon-btn"
-            onClick={() => setTheme(isDark ? "light" : "dark")}
-            aria-label={isDark ? "Switch to light theme" : "Switch to dark theme"}
-            title={isDark ? "Light theme" : "Dark theme"}
-          >
-            {isDark ? <IconSun size={16} /> : <IconMoon size={16} />}
-          </button>
         </div>
       </header>
 

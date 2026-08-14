@@ -24,6 +24,7 @@ const TENANT_MODULE = "custom_tenants";
 const F_EMAIL = "email_custom_tenantcontact";
 const F_PHONE = "phone_custom_tenantcontact";
 const F_PARENT = "tenant_custom_tenantcontact_1";
+const F_PHOTO = "photo"; // system FILE field — the contact's photo section
 
 const T_NAME = "primarycontactname_custom_tenants";
 const T_EMAIL = "primarycontactemail_custom_tenants";
@@ -279,6 +280,11 @@ server.addHandler({
       { module: CONTACT_MODULE, recordId: contactId, field: F_PHONE, label: "Phone", from: rec[F_PHONE] ?? "", to: maskedPhone(token) },
     ];
 
+    const photo = await fetchPhoto(contactId);
+    if (photo != null) {
+      changes.push({ module: CONTACT_MODULE, recordId: contactId, field: F_PHOTO, label: "Photo", from: photoLabel(photo), to: "(removed)" });
+    }
+
     const parentChanges: any[] = [];
     if (parentId && parent) {
       // Only offer the parent's fields where the value really is this person's.
@@ -305,6 +311,31 @@ server.addHandler({
     };
   },
 });
+
+/**
+ * The photo field is NOT in the record's default projection, so it takes a
+ * dedicated select to know whether one exists. Returns the raw value (object,
+ * id, …) or null. A failure here degrades to "no photo" rather than blocking
+ * the erasure — the photo is still nulled by the write either way.
+ */
+async function fetchPhoto(contactId: number): Promise<any> {
+  try {
+    const got = await callAction("facilio-cmms", "list-custom-module-records", {
+      custom_module: CONTACT_MODULE,
+      filters: `id(is)=${contactId}`,
+      select: `id,${F_PHOTO}`,
+      page_size: 1,
+    });
+    return got?.data?.[0]?.[F_PHOTO] ?? null;
+  } catch (_) {
+    return null;
+  }
+}
+
+function photoLabel(v: any): string {
+  if (v && typeof v === "object") return String(v.fileName ?? v.name ?? `file #${v.id ?? "?"}`);
+  return `file #${v}`;
+}
 
 function maskedPhone(token: string) {
   let digits = "";
@@ -387,16 +418,20 @@ server.addHandler({
     audit(d, { actorEmail: actor, action: "ANONYMIZE", referenceNo: ref, moduleName: CONTACT_MODULE, recordId: contactId, outcome: "started", detail: `pseudonym ${token}` });
 
     // ---- 1. the Tenant Contact record itself
+    // The photo is nulled in the same write. It is reported as a changed field
+    // only when one actually existed, so the result never overstates the work.
+    const hadPhoto = (await fetchPhoto(contactId)) != null;
+    const contactFields = ["name", F_EMAIL, F_PHONE, ...(hadPhoto ? [F_PHOTO] : [])];
     try {
       await callAction("facilio-cmms", "update-custom-module-record", {
         custom_module: CONTACT_MODULE,
         id: contactId,
-        record: { name: token, [F_EMAIL]: newEmail, [F_PHONE]: newPhone },
+        record: { name: token, [F_EMAIL]: newEmail, [F_PHONE]: newPhone, [F_PHOTO]: null },
       });
-      for (const f of ["name", F_EMAIL, F_PHONE]) {
+      for (const f of contactFields) {
         audit(d, { actorEmail: actor, action: "ANONYMIZE", referenceNo: ref, moduleName: CONTACT_MODULE, recordId: contactId, fieldName: f, outcome: "success" });
       }
-      results.push({ module: CONTACT_MODULE, recordId: contactId, fields: ["name", F_EMAIL, F_PHONE], ok: true });
+      results.push({ module: CONTACT_MODULE, recordId: contactId, fields: contactFields, ok: true });
     } catch (e: any) {
       const msg = String(e?.message ?? e).slice(0, 300);
       audit(d, { actorEmail: actor, action: "ANONYMIZE", referenceNo: ref, moduleName: CONTACT_MODULE, recordId: contactId, outcome: "failed", detail: msg });

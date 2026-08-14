@@ -11,6 +11,9 @@
 
 import { fn } from "./vibe.js";
 import { CONTACT_MODULE, TENANT_MODULE } from "./engine.js";
+// ?raw inlines the SVG markup at build time, so the print document renders the
+// brand mark with no network fetch to race against print().
+import logoSvg from "../assets/facilio-logo.svg?raw";
 
 export const EXPORT_KINDS = {
   dsar: { title: "Data Subject Access response", outcome: "dsar-response" },
@@ -87,6 +90,19 @@ function esc(s) {
 /* Fields that name a record — these lead the column order. */
 const NAME_FIELDS = ["subject", "name", "title"];
 
+/* Housekeeping fields the exported document does not show. */
+const EXCLUDED_FIELDS = new Set([
+  "sysModifiedTime", "modifiedTime", "sysModifiedBy", "modifiedBy",
+  "sysCreatedBy", "createdBy",
+]);
+
+/** "James Carter · james.carter@…" → "James Carter" — the email identifies the
+ *  subject once at the top of the document; repeating it in every row adds
+ *  nothing and spreads the identifier further than the report needs to. */
+function stripEmail(v) {
+  return typeof v === "string" ? v.replace(/\s*·\s*[^\s·]+@[^\s·]+/g, "") : v;
+}
+
 /**
  * Columns for a module's record table, as the UNION of the fields present across
  * its records. The union matters because the engine drops null-valued fields per
@@ -100,6 +116,7 @@ function columnsFor(group) {
   const byField = new Map();
   for (const r of group.records) {
     for (const f of r.fields ?? []) {
+      if (EXCLUDED_FIELDS.has(f.field)) continue;
       if (!byField.has(f.field)) byField.set(f.field, { field: f.field, label: f.label, klass: f.klass });
     }
   }
@@ -144,7 +161,7 @@ function recordTable(group, internal) {
         ${group.records.map((r) => `
           <tr>
             <td class="num">${esc(r.id)}</td>
-            ${cols.map((c) => `<td>${esc(valueOf(r, c.field) ?? "—")}</td>`).join("")}
+            ${cols.map((c) => `<td>${esc(stripEmail(valueOf(r, c.field)) ?? "—")}</td>`).join("")}
             ${anyAttachments
               ? `<td>${r.attachments?.length ? r.attachments.map((a) => esc(a.name)).join("<br>") : "—"}</td>`
               : ""}
@@ -235,7 +252,10 @@ function buildHtml(report, caseRef, kind, actor) {
       records: [{ id: report.contact.id, fields: report.contact.fields }] },
     ...(report.parent
       ? [{ module: TENANT_MODULE, displayName: "Tenants", lookupFields: [],
-           records: [{ id: report.parent.id, fields: report.parent.fields }] }]
+           // The primary-contact columns restate the subject's own table row,
+           // so the Tenants section shows only the tenant's own data.
+           records: [{ id: report.parent.id,
+                       fields: (report.parent.fields ?? []).filter((f) => !f.field.startsWith("primarycontact")) }] }]
       : []),
   ];
 
@@ -294,9 +314,12 @@ function buildHtml(report, caseRef, kind, actor) {
   .bar-fill { height: 2.4mm; min-width: .8mm; background: #0024d6; border-radius: 0 1mm 1mm 0; }
   .bar-val { font-size: 9pt; font-weight: 600; color: #283648; font-variant-numeric: tabular-nums; }
   .chart-f { font-size: 8.5pt; color: #607796; margin-top: 3mm; }
+  .brand { margin-bottom: 5mm; }
+  .brand svg { height: 7mm; width: auto; display: block; }
 </style></head><body>
+  <div class="brand">${logoSvg}</div>
   <h1>${esc(EXPORT_KINDS[kind].title)}</h1>
-  <div class="sub">Case ${esc(caseRef)} · generated ${esc(now)}${internal ? ` · by ${esc(actor)}` : ""}</div>
+  <div class="sub">${esc(caseRef)} · generated ${esc(now)}${internal ? ` · by ${esc(actor)}` : ""}</div>
 
   <h2>Subject</h2>
   <div class="kv">

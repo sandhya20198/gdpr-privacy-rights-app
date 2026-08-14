@@ -44,6 +44,15 @@ button { font-family: inherit; }
   padding: var(--spacing-containerXLarge) var(--spacing-sectionSmall);
   display: flex; align-items: center; gap: var(--spacing-sectionXSmall);
 }
+/* Brand mark. The wordmark's dark-purple ink needs a light surface, so in the
+   dark theme it sits on a white pill; in the light theme the pill is invisible
+   against the frost header. */
+.topbar__logo {
+  flex: none; display: flex; align-items: center;
+  background: #fff; border-radius: var(--border-high);
+  padding: 5px 8px;
+}
+.topbar__logo img { height: 16px; display: block; }
 .topbar__mark {
   width: 32px; height: 32px; flex: none;
   display: flex; align-items: center; justify-content: center;
