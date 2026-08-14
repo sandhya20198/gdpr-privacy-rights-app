@@ -84,28 +84,6 @@ function esc(s) {
     ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" }[c]));
 }
 
-/**
- * The subject's own record and the parent Tenant hold a handful of fields on a
- * single record each, so they stay FIELD-wise: one row per field, which is the
- * shape that carries the per-field classification legibly.
- */
-function identityTable(record, internal) {
-  return `
-    <div class="rec">
-      <table>
-        <thead><tr><th>Field</th><th>Value held</th><th>Classification</th></tr></thead>
-        <tbody>
-          ${(record.fields ?? []).map((f) => `
-            <tr>
-              <td>${esc(f.label)}${internal ? `<div class="api">${esc(f.field)}</div>` : ""}</td>
-              <td>${esc(f.value)}</td>
-              <td>${esc(f.klass)}</td>
-            </tr>`).join("")}
-        </tbody>
-      </table>
-    </div>`;
-}
-
 /* Fields that name a record — these lead the column order. */
 const NAME_FIELDS = ["subject", "name", "title"];
 
@@ -249,17 +227,21 @@ function buildHtml(report, caseRef, kind, actor) {
     <h3>${esc(name)}${internal ? ` <span class="api">${esc(api)}</span>` : ""}
       <span class="api">${count} record${count === 1 ? "" : "s"}</span></h3>`;
 
-  const sections = [
-    heading("Tenant Contact", CONTACT_MODULE, 1),
-    identityTable({ fields: report.contact.fields }, internal),
+  // The subject's own record and the parent Tenant render through the SAME
+  // row-per-record template as every other module — one consistent table shape
+  // across the whole report.
+  const identityGroups = [
+    { module: CONTACT_MODULE, displayName: "Tenant Contact", lookupFields: [],
+      records: [{ id: report.contact.id, fields: report.contact.fields }] },
     ...(report.parent
-      ? [heading("Tenants", TENANT_MODULE, 1), identityTable({ fields: report.parent.fields }, internal)]
+      ? [{ module: TENANT_MODULE, displayName: "Tenants", lookupFields: [],
+           records: [{ id: report.parent.id, fields: report.parent.fields }] }]
       : []),
-    ...report.moduleGroups.flatMap((g) => [
-      heading(g.displayName, g.module, g.records.length),
-      recordTable(g, internal),
-    ]),
-  ].join("");
+  ];
+
+  const sections = [...identityGroups, ...report.moduleGroups]
+    .flatMap((g) => [heading(g.displayName, g.module, g.records.length), recordTable(g, internal)])
+    .join("");
 
   // NOTE ON COLOURS: this is a standalone print document opened in a new window.
   // It has no FDS runtime, so var(--colors-*) would resolve to nothing — and a
@@ -277,14 +259,14 @@ function buildHtml(report, caseRef, kind, actor) {
   h3 { font-size: 11pt; margin: 6mm 0 2mm; }
   .sub { color: #607796; font-size: 9.5pt; }
   .api { color: #607796; font-weight: 400; font-family: ui-monospace, Menlo, monospace; font-size: 8.5pt; }
-  table { width: 100%; border-collapse: collapse; margin: 2mm 0 3mm; }
+  table { width: 100%; border-collapse: collapse; margin: 2mm 0 3mm; border: 1px solid #dbdbdb; }
   th { text-align: left; font-size: 8pt; text-transform: uppercase; letter-spacing: .4px; color: #607796;
-       border-bottom: 1px solid #dbdbdb; padding: 1.5mm 2mm; }
-  td { font-size: 9.5pt; border-bottom: 1px solid #eae9e9; padding: 1.8mm 2mm; vertical-align: top; }
-  .rec { break-inside: avoid; page-break-inside: avoid; }
+       border: 1px solid #dbdbdb; background: #fafafa; padding: 1.5mm 2mm; }
+  td { font-size: 9.5pt; border: 1px solid #dbdbdb; padding: 1.8mm 2mm; vertical-align: top; }
   .kv { display: grid; grid-template-columns: 46mm 1fr; gap: 1mm 4mm; font-size: 9.5pt; margin: 3mm 0; }
   .kv div:nth-child(odd) { color: #607796; }
   .note { background: #fafafa; border: 1px solid #eae9e9; padding: 3mm; font-size: 9pt; color: #384a62; margin-top: 6mm; }
+  .note p { margin: 1.5mm 0 0; }
 
   /* Related-record tables carry many columns, so they run a step smaller, wrap
      long free text rather than overflowing the page, and repeat their header
@@ -292,6 +274,7 @@ function buildHtml(report, caseRef, kind, actor) {
   table.recs { table-layout: auto; }
   table.recs thead { display: table-header-group; }
   table.recs th, table.recs td { font-size: 8.5pt; padding: 1.5mm 1.8mm; word-break: break-word; }
+  table.recs th { word-break: normal; }
   table.recs th .api { display: block; font-size: 7pt; text-transform: none; letter-spacing: 0; margin-top: .4mm; }
   table.recs tr { break-inside: avoid; page-break-inside: avoid; }
   table.recs .num { font-variant-numeric: tabular-nums; white-space: nowrap; }
@@ -331,12 +314,23 @@ function buildHtml(report, caseRef, kind, actor) {
   <h2>Where the data lives</h2>
   ${sections}
 
+  ${report.failures?.length ? `<div class="note">
+    <strong>This report is incomplete:</strong> ${report.failures.length} query(ies) failed, so the
+    counts may understate what exists.
+  </div>` : ""}
+
   <div class="note">
-    <strong>Method.</strong> Records are included only where they hold a lookup to the subject's Tenant
-    Contact record. Free text is never matched, and notes are not scanned, because a text match cannot be
-    attributed to one individual with certainty. Attachments are listed where the parent record is
-    provably the subject's.
-    ${report.failures?.length ? ` <strong>This report is incomplete:</strong> ${report.failures.length} query(ies) failed, so the counts may understate what exists.` : ""}
+    <strong>Report Purpose &amp; Disclosure</strong>
+    <p>This report has been generated by Facilio, acting as a data processor, to assist
+    [Controller Company Name], the data controller, in responding to a Data Subject Access Request
+    (DSAR) under applicable data protection legislation.</p>
+    <p>The report identifies personal data associated with the data subject within the Facilio
+    platform. [Controller Company Name] is responsible for reviewing the report, determining the
+    appropriate response to the data subject, and carrying out any required redactions or exemptions
+    before disclosure.</p>
+    <p>This report is provided as a data-processing and discovery aid and does not constitute legal
+    advice or a determination of the Controller's obligations under applicable data protection
+    legislation.</p>
   </div>
 </body></html>`;
 }

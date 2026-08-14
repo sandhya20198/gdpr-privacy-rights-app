@@ -324,7 +324,7 @@ button { font-family: inherit; }
 .stat__sub { font-size: var(--typography-captionReg12-fontSize); color: var(--colors-textCaption); }
 
 .stat-grid {
-  display: grid; grid-template-columns: repeat(4, 1fr); gap: 1px;
+  display: grid; grid-template-columns: repeat(2, 1fr); gap: 1px;
   background: var(--colors-borderNeutralBaseSubtler);
 }
 .stat-grid > .stat {

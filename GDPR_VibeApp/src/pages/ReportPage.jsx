@@ -4,7 +4,7 @@ import ModuleBreakdown from "../components/ModuleBreakdown.jsx";
 import AnonymizePanel from "../components/AnonymizePanel.jsx";
 import { exportReport } from "../lib/exportReport.js";
 import { EmptyState, PartialBanner, SuccessBanner, InfoBanner } from "../components/states.jsx";
-import { IconSearch, IconDownload, IconFile, IconEraser, IconRefresh, IconCheck } from "../lib/icons.jsx";
+import { IconSearch, IconDownload, IconEraser, IconCheck } from "../lib/icons.jsx";
 
 export default function ReportPage({ report, caseRef, actor, onReset, onRescan, onAudited, onReplaceReport }) {
   const [showAnon, setShowAnon] = useState(false);
@@ -79,26 +79,11 @@ export default function ReportPage({ report, caseRef, actor, onReset, onRescan, 
           </button>
           <button
             className="fds-btn fds-btn--secondary"
-            onClick={() => onRescan(report.email)}
-            title="Re-resolve the schema and re-run every query"
-          >
-            <IconRefresh /> Rescan schema
-          </button>
-          <button
-            className="fds-btn fds-btn--secondary"
             onClick={() => runExport("dsar")}
             disabled={!!exporting}
             title="Prints the subject-facing response — choose “Save as PDF”"
           >
             <IconDownload /> {exporting === "dsar" ? "Exporting…" : "Export PDF"}
-          </button>
-          <button
-            className="fds-btn fds-btn--tertiary"
-            onClick={() => runExport("internal")}
-            disabled={!!exporting}
-            title="Prints the internal audit record for your compliance file — adds API names and schema provenance"
-          >
-            <IconFile /> {exporting === "internal" ? "Exporting…" : "Internal record"}
           </button>
           <button
             className="fds-btn fds-btn--danger"
