@@ -1,0 +1,37 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 800 800" role="img" aria-label="GDPR Ready — General Data Protection Regulation">
+  <defs>
+    <!-- Starts at 6 o'clock and sweeps clockwise, so the 12 o'clock centre sits at
+         50% of the path and the text has room either side of it. Starting at 9
+         o'clock would clip the leading characters, which run past the path start. -->
+    <path id="gdpr-arc" fill="none" d="M400,400 m0,337 a337,337 0 1,1 0,-674 a337,337 0 1,1 0,674"/>
+    <path id="gdpr-star" d="M0,-17 L4.23,-5.83 L16.17,-5.25 L6.85,2.22 L9.99,13.75 L0,7.2 L-9.99,13.75 L-6.85,2.22 L-16.17,-5.25 L-4.23,-5.83 Z"/>
+  </defs>
+
+  <circle cx="400" cy="400" r="396" fill="#24404e"/>
+  <circle cx="400" cy="400" r="374" fill="none" stroke="#ffffff" stroke-width="9"/>
+  <circle cx="400" cy="400" r="300" fill="#ffffff"/>
+
+  <text font-family="Helvetica,Arial,sans-serif" font-size="68" font-weight="700"
+        letter-spacing="4" fill="#ffffff">
+    <textPath href="#gdpr-arc" startOffset="50%" text-anchor="middle">
+      GENERAL DATA PROTECTION REGULATION
+    </textPath>
+  </text>
+
+  <g fill="#e0394f">
+    <use href="#gdpr-star" x="292" y="272"/>
+    <use href="#gdpr-star" x="346" y="272"/>
+    <use href="#gdpr-star" x="400" y="272"/>
+    <use href="#gdpr-star" x="454" y="272"/>
+    <use href="#gdpr-star" x="508" y="272"/>
+  </g>
+
+  <text x="400" y="440" text-anchor="middle" fill="#24404e"
+        font-family="Helvetica,Arial,sans-serif" font-size="155" font-weight="700">GDPR</text>
+  <text x="400" y="516" text-anchor="middle" fill="#24404e"
+        font-family="Helvetica,Arial,sans-serif" font-size="72" font-weight="700"
+        letter-spacing="2">READY</text>
+
+  <path d="M332,606 L392,662 L512,545" fill="none" stroke="#e0394f" stroke-width="52"
+        stroke-linecap="round" stroke-linejoin="round"/>
+</svg>

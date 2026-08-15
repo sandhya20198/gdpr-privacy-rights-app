@@ -112,7 +112,7 @@ export default function SchedulePage({ actor, onScheduled }) {
 
           <button
             type="submit"
-            className="fds-btn fds-btn--primary fds-btn--lg fds-btn--block"
+            className="fds-btn fds-btn--accent fds-btn--lg fds-btn--block"
             disabled={!emailValid || checking}
           >
             {checking

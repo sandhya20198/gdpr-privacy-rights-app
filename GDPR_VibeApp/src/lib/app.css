@@ -48,9 +48,12 @@ button { font-family: inherit; }
 /* Brand wordmark, top-left of every page. Its ink is dark purple, which reads
    correctly because the portal is pinned to the light theme. */
 /* Now / Schedule — the two erasure flows, chosen at the top of the page. */
+/* Segmented control. The selected flow carries the portal's indigo, so the
+   accent means the same thing here as on the Audit Log bands and the Scheduled
+   header: "this is the one in view". The track takes the matching tint. */
 .modes {
   display: inline-flex; align-self: center; gap: 2px; padding: 3px;
-  background: var(--colors-backgroundMidgroundMedium);
+  background: var(--prc-band-tint);
   border-radius: var(--border-high);
 }
 .mode {
@@ -60,12 +63,14 @@ button { font-family: inherit; }
   font-size: var(--typography-bodyMed14-fontSize);
   font-weight: var(--typography-bodyMed14-fontWeight);
   color: var(--colors-textDescription);
+  transition: background .15s, color .15s;
 }
-.mode:hover { color: var(--colors-textMain); }
+.mode:hover:not(.is-active) { color: var(--colors-textMain); }
+/* Fill carries the affordance, so the old 1px shadow is gone — it was the only
+   shadow outside the drawer, and a raw rgba besides. */
 .mode.is-active {
-  background: var(--colors-backgroundContainer);
-  color: var(--colors-textMain);
-  box-shadow: 0 1px 2px rgba(25, 36, 50, .12);
+  background: var(--prc-day-band);
+  color: var(--colors-textInverseDefault);
 }
 
 .topbar__logo { flex: none; display: flex; align-items: center; }
@@ -221,6 +226,19 @@ button { font-family: inherit; }
 .fds-btn--primary:hover:not([disabled])  { background: var(--colors-backgroundPrimaryHovered); }
 .fds-btn--primary:active:not([disabled]) { background: var(--colors-backgroundPrimaryPressed); }
 .fds-btn--primary[disabled] { background: var(--colors-backgroundMidgroundMedium); color: var(--colors-textCaption); }
+
+/* Accent primary — the portal's indigo instead of the FDS primary blue. Shares
+   the band colour, so the page's one call to action matches its accent. */
+.fds-btn--accent { background: var(--prc-day-band); color: var(--colors-textInverseDefault); }
+.fds-btn--accent:hover:not([disabled])  { background: var(--prc-accent-hover); }
+.fds-btn--accent:active:not([disabled]) { background: var(--prc-accent-pressed); }
+/* Disabled sits on the accent's own tint — the same surface as the segmented
+   control's track — so an unavailable action still reads as part of the accent
+   family rather than dropping to a neutral grey. */
+.fds-btn--accent[disabled] {
+  background: var(--prc-band-tint);
+  color: var(--colors-textCaption);
+}
 
 .fds-btn--secondary {
   background: var(--colors-backgroundContainer); color: var(--colors-textMain);
@@ -396,6 +414,22 @@ button { font-family: inherit; }
 .fds-table--wide td, .fds-table--wide th { white-space: nowrap; }
 
 /* ============================================================
+   Landing page mark + trust badge
+   ============================================================ */
+/* Heads the landing page above both flows. Larger than a glyph so the mark's
+   circuit detail survives; inherits ink from textMain via currentColor. */
+.page-mark { width: 64px; height: 64px; display: block; color: var(--colors-textMain); }
+
+/* ============================================================
+   Trust badge — closes the landing page under the search
+   ============================================================ */
+.trust-badge {
+  display: flex; justify-content: center;
+  padding-top: var(--spacing-containerLarge);
+}
+.trust-badge img { width: 96px; height: 96px; display: block; }
+
+/* ============================================================
    Audit log — toolbar + day-grouped table
    ============================================================ */
 .log-toolbar {
@@ -442,8 +476,30 @@ button { font-family: inherit; }
 /* The one deliberate exception to the alias-token rule: the platform's Audit Log
    day band is this exact indigo, and no FDS alias resolves to it. Declared once
    here so the value has a name and never repeats in a rule. It is theme-fixed —
-   the portal pins itself to the light theme, so nothing needs to re-point. */
-:root { --prc-day-band: #656cb6; }
+   the portal pins itself to the light theme, so nothing needs to re-point.
+   `--prc-band-tint` is the same hue at ~8% over white, for column headers that
+   should read as related to a band without competing with it. */
+:root {
+  --prc-day-band: #656cb6;
+  --prc-band-tint: #f0f1f8;
+  /* Interaction steps for the accent, darkened off the base. */
+  --prc-accent-hover: #5a61ab;
+  --prc-accent-pressed: #4f5699;
+}
+
+/* Accent widget header — the band treatment, applied to a widget's header
+   region. Its children are pinned to the inverse ink because the fill stays
+   saturated regardless of theme. */
+.fds-widget__header--accent {
+  background: var(--prc-day-band);
+  color: var(--colors-textInverseDefault);
+}
+.fds-widget__header--accent .t-h16,
+.fds-widget__header--accent .t-cap-d { color: var(--colors-textInverseDefault); }
+.fds-widget__header--accent .t-cap-d { opacity: .85; }
+
+/* Column headers tinted to match, so the header zone reads as one unit. */
+.fds-table--tinted th { background: var(--prc-band-tint); }
 
 .day-head {
   display: flex; align-items: center;

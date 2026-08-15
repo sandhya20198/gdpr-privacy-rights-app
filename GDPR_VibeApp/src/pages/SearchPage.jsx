@@ -1,6 +1,10 @@
 import React, { useState } from "react";
 import SchedulePage from "./SchedulePage.jsx";
-import { IconSearch, IconShield } from "../lib/icons.jsx";
+import { IconSearch } from "../lib/icons.jsx";
+// Both under Vite's 4 KB inline limit, so these resolve to data: URIs — no
+// network request, matching how the brand mark is handled.
+import shieldMarkUrl from "../assets/privacy-shield.svg";
+import gdprBadgeUrl from "../assets/gdpr-ready.svg";
 
 const EMAIL_RE = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
 
@@ -26,9 +30,10 @@ export default function SearchPage({ onSearch, actor, onScheduled }) {
     <div className="wrap wrap--narrow">
       <div className="stack">
         <div className="stack-s" style={{ textAlign: "center", alignItems: "center" }}>
-          <span className="topbar__mark" style={{ width: 40, height: 40 }}>
-            <IconShield size={22} />
-          </span>
+          {/* Shown above both flows, so it heads the page in Now and Schedule
+              alike. Rendered bare rather than inside a 40px chip — the mark's
+              circuit detail turns to mush at glyph size. */}
+          <img className="page-mark" src={shieldMarkUrl} alt="" />
           <h1 className="t-display" style={{ marginTop: "var(--spacing-containerLarge)" }}>
             {mode === "now" ? "Find a person's data" : "Schedule"}
           </h1>
@@ -96,12 +101,16 @@ export default function SearchPage({ onSearch, actor, onScheduled }) {
               {emailError && <div className="fds-help fds-help--error">{emailError}</div>}
             </div>
 
-            <button type="submit" className="fds-btn fds-btn--primary fds-btn--lg fds-btn--block" disabled={!canSubmit}>
+            <button type="submit" className="fds-btn fds-btn--accent fds-btn--lg fds-btn--block" disabled={!canSubmit}>
               <IconSearch /> Search
             </button>
           </div>
         </form>
         )}
+
+        <div className="trust-badge">
+          <img src={gdprBadgeUrl} alt="GDPR Ready — General Data Protection Regulation" />
+        </div>
       </div>
     </div>
   );

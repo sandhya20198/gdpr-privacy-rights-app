@@ -1,8 +1,8 @@
-import React, { useCallback, useEffect, useState } from "react";
+import React, { useCallback, useEffect, useMemo, useState } from "react";
 import { fn } from "../lib/vibe.js";
 import { contactNames } from "../lib/engine.js";
 import { EmptyState } from "../components/states.jsx";
-import { IconRefresh, IconSpinner, IconAlert, IconCheck } from "../lib/icons.jsx";
+import { IconRefresh, IconSpinner, IconAlert, IconCheck, IconSearch } from "../lib/icons.jsx";
 
 const STATUS_DOT = {
   pending: "info",
@@ -22,6 +22,7 @@ export default function ScheduledListPage({ actor, nonce, onChanged }) {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
   const [busy, setBusy] = useState(null);
+  const [query, setQuery] = useState("");
 
   const load = useCallback(async () => {
     setLoading(true);
@@ -57,6 +58,23 @@ export default function ScheduledListPage({ actor, nonce, onChanged }) {
 
   const pending = rows.filter((r) => r.status === "pending").length;
 
+  // Filtered in the browser over the loaded list — schedule-list returns the
+  // whole set, so there is nothing to re-fetch. The subject's name is matched
+  // from what is already resolved on screen; it is never sent anywhere.
+  const filtered = useMemo(() => {
+    const q = query.trim().toLowerCase();
+    if (!q) return rows;
+    return rows.filter((r) => {
+      const who = names.get(Number(r.contact_id));
+      return [
+        who?.name, r.contact_id, r.created_by, r.status, r.detail,
+        fmtDay(r.scheduled_for), fmtDay(r.created_at),
+      ].filter(Boolean).join(" ").toLowerCase().includes(q);
+    });
+  }, [rows, names, query]);
+
+  const filtering = query.trim() !== "";
+
   return (
     <div className="wrap">
       <div className="stack">
@@ -89,14 +107,41 @@ export default function ScheduledListPage({ actor, nonce, onChanged }) {
             body="Anonymizations booked from the Schedule flow appear here, with the date each one runs."
           />
         ) : (
+          <>
+          <div className="log-toolbar">
+            <div className="log-toolbar__search">
+              <div className="fds-field">
+                <IconSearch />
+                <input
+                  type="search"
+                  value={query}
+                  onChange={(e) => setQuery(e.target.value)}
+                  placeholder="Search name, record id, status…"
+                  aria-label="Search booked anonymizations"
+                />
+              </div>
+            </div>
+          </div>
+
           <div className="fds-widget">
-            <div className="fds-widget__header">
-              <span className="t-h16">{rows.length} schedule{rows.length === 1 ? "" : "s"}</span>
+            <div className="fds-widget__header fds-widget__header--accent">
+              <span className="t-h16">
+                {filtering
+                  ? `${filtered.length} of ${rows.length} schedules`
+                  : `${rows.length} schedule${rows.length === 1 ? "" : "s"}`}
+              </span>
               <span className="t-cap-d nowrap">{pending} pending</span>
             </div>
             <div className="fds-widget__body fds-widget__body--flush">
+              {filtered.length === 0 ? (
+                <EmptyState
+                  icon={<IconSearch size={32} />}
+                  title="No schedules match that search"
+                  body="Try a different name, record id or status."
+                />
+              ) : (
               <div className="tbl-scroll">
-                <table className="fds-table fds-table--hover">
+                <table className="fds-table fds-table--hover fds-table--tinted">
                   <thead>
                     <tr>
                       <th>Anonymise on</th>
@@ -108,7 +153,7 @@ export default function ScheduledListPage({ actor, nonce, onChanged }) {
                     </tr>
                   </thead>
                   <tbody>
-                    {rows.map((r) => {
+                    {filtered.map((r) => {
                       const who = names.get(Number(r.contact_id));
                       return (
                         <tr key={r.event_id}>
@@ -145,6 +190,7 @@ export default function ScheduledListPage({ actor, nonce, onChanged }) {
                   </tbody>
                 </table>
               </div>
+              )}
             </div>
             <div className="fds-widget__footer">
               <span className="t-cap">
@@ -153,6 +199,7 @@ export default function ScheduledListPage({ actor, nonce, onChanged }) {
               </span>
             </div>
           </div>
+          </>
         )}
       </div>
     </div>

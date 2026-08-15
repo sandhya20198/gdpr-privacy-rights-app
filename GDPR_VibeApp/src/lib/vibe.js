@@ -107,6 +107,18 @@ function devMock(handler) {
         ],
       };
     }
+    case "schedule-list": {
+      const DAY = 864e5;
+      const day = (n) => new Date(Date.now() + n * DAY).toISOString();
+      return {
+        rows: [
+          { event_id: "S4", contact_id: 4830454, scheduled_for: day(3),   created_at: day(-1), created_by: "admin@article17.test", status: "pending",   detail: null },
+          { event_id: "S3", contact_id: 4830461, scheduled_for: day(9),   created_at: day(-2), created_by: "dpo@article17.test",   status: "pending",   detail: null },
+          { event_id: "S2", contact_id: 4830451, scheduled_for: day(-4),  created_at: day(-9), created_by: "ops@article17.test",   status: "done",      detail: "3 fields anonymised" },
+          { event_id: "S1", contact_id: 4830449, scheduled_for: day(-11), created_at: day(-14), created_by: "admin@article17.test", status: "cancelled", detail: "superseded by immediate erasure (case PRC-20260801-HELM)" },
+        ],
+      };
+    }
     case "recent-cases":
       return { rows: [{ reference_no: "PRC-20260813-DEMO", last_at: new Date().toISOString(), events: 3, anonymized: 1 }] };
     case "audit-log":

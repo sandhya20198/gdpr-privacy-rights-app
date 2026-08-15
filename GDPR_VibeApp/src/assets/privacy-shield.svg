@@ -1,0 +1,52 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512" role="img"
+     aria-label="Secured personal data">
+  <g fill="none" stroke="currentColor" stroke-width="17"
+     stroke-linecap="round" stroke-linejoin="round">
+
+    <!-- Shield outline. Drawn as broken segments, so the circuit traces read as
+         feeding into it rather than stopping dead at a closed edge. -->
+    <path d="M256,20 C234,64 186,98 126,120"/>
+    <path d="M98,130 C64,142 52,150 52,172 C52,300 120,430 256,502"/>
+    <path d="M256,20 C278,64 326,98 386,120"/>
+    <path d="M414,130 C448,142 460,150 460,172 C460,244 439,312 402,368"/>
+    <path d="M383,394 C348,436 305,472 256,502"/>
+
+    <!-- Padlock -->
+    <path d="M206,232 v-30 a50,50 0 0,1 100,0 v30"/>
+    <rect x="186" y="232" width="140" height="112" rx="24"/>
+    <path d="M256,300 v20"/>
+
+    <!-- Circuit traces, left — each stops short of the shield edge -->
+    <path d="M46,286 h24 l24,24 h12"/>
+    <path d="M46,340 h66"/>
+    <path d="M82,388 h58"/>
+    <path d="M118,442 h24 l24,-24 h20"/>
+
+    <!-- Circuit traces, right -->
+    <path d="M466,286 h-24 l-24,24 h-12"/>
+    <path d="M466,340 h-66"/>
+    <path d="M430,388 h-58"/>
+    <path d="M394,442 h-24 l-24,-24 h-20"/>
+
+    <!-- Trace nodes — rings, so they read as connectors -->
+    <g stroke-width="19">
+      <circle cx="26" cy="286" r="15"/>
+      <circle cx="26" cy="340" r="15"/>
+      <circle cx="62" cy="388" r="15"/>
+      <circle cx="98" cy="442" r="15"/>
+      <circle cx="486" cy="286" r="15"/>
+      <circle cx="486" cy="340" r="15"/>
+      <circle cx="450" cy="388" r="15"/>
+      <circle cx="414" cy="442" r="15"/>
+    </g>
+  </g>
+
+  <!-- Solid nodes inside the shield, and the keyhole -->
+  <g fill="currentColor">
+    <circle cx="256" cy="86" r="21"/>
+    <circle cx="126" cy="162" r="23"/>
+    <circle cx="386" cy="162" r="23"/>
+    <circle cx="256" cy="424" r="21"/>
+    <circle cx="256" cy="276" r="15"/>
+  </g>
+</svg>
