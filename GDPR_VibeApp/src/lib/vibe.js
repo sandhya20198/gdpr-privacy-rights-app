@@ -89,14 +89,24 @@ function devMock(handler) {
         alreadyAnonymized: false, eligible: false,
         reason: 'Tenant is active and cannot do this for the primary contact. "Acme Retail Group" is active — a primary contact can only be erased or scheduled once their tenant is expired.',
       };
-    case "audit-list":
+    case "audit-list": {
+      // Spread over several days so the day-grouped log can be seen grouping.
+      const DAY = 864e5;
+      const at = (days, mins) => new Date(Date.now() - days * DAY - mins * 6e4).toISOString();
       return {
         rows: [
-          { event_id: "E3", occurred_at: new Date().toISOString(), actor_email: "admin@article17.test", action: "ANONYMIZE", reference_no: "PRC-20260813-DEMO", module_name: C, record_id: 4830454, field_name: "email", outcome: "success", detail: null },
-          { event_id: "E2", occurred_at: new Date(Date.now() - 6e4).toISOString(), actor_email: "admin@article17.test", action: "EXPORT", reference_no: "PRC-20260813-DEMO", module_name: null, record_id: null, field_name: null, outcome: "dsar-response", detail: "7 records across 4 modules" },
-          { event_id: "E1", occurred_at: new Date(Date.now() - 12e4).toISOString(), actor_email: "admin@article17.test", action: "SEARCH", reference_no: "PRC-20260813-DEMO", module_name: null, record_id: null, field_name: null, outcome: "match", detail: "7 records across 4 modules" },
+          { event_id: "E9", occurred_at: at(0, 0),    actor_email: "admin@article17.test",     action: "ANONYMIZE", reference_no: "PRC-20260813-DEMO", module_name: C, record_id: 4830454, field_name: "email", outcome: "success", detail: null },
+          { event_id: "E8", occurred_at: at(0, 1),    actor_email: "admin@article17.test",     action: "EXPORT",    reference_no: "PRC-20260813-DEMO", module_name: null, record_id: null, field_name: null, outcome: "dsar-response", detail: "7 records across 4 modules" },
+          { event_id: "E7", occurred_at: at(0, 2),    actor_email: "admin@article17.test",     action: "SEARCH",    reference_no: "PRC-20260813-DEMO", module_name: null, record_id: null, field_name: null, outcome: "match", detail: "7 records across 4 modules" },
+          { event_id: "E6", occurred_at: at(1, 140),  actor_email: "dpo@article17.test",       action: "ANONYMIZE", reference_no: "PRC-20260812-ACME", module_name: C, record_id: 4830461, field_name: "phone", outcome: "partial", detail: "1 of 2 parent fields skipped" },
+          { event_id: "E5", occurred_at: at(1, 205),  actor_email: "dpo@article17.test",       action: "SEARCH",    reference_no: "PRC-20260812-ACME", module_name: null, record_id: null, field_name: null, outcome: "match", detail: "4 records across 3 modules" },
+          { event_id: "E4", occurred_at: at(3, 320),  actor_email: "ops@article17.test",       action: "RESCAN",    reference_no: "PRC-20260810-NORT", module_name: null, record_id: null, field_name: null, outcome: "complete", detail: "cache bypassed" },
+          { event_id: "E3", occurred_at: at(3, 366),  actor_email: "ops@article17.test",       action: "SEARCH",    reference_no: "PRC-20260810-NORT", module_name: null, record_id: null, field_name: null, outcome: "no-match", detail: "no tenant contact for the supplied address" },
+          { event_id: "E2", occurred_at: at(12, 410), actor_email: "admin@article17.test",     action: "ANONYMIZE", reference_no: "PRC-20260801-HELM", module_name: T, record_id: 4830451, field_name: "primaryContactName", outcome: "success", detail: null },
+          { event_id: "E1", occurred_at: at(12, 455), actor_email: "admin@article17.test",     action: "SEARCH",    reference_no: "PRC-20260801-HELM", module_name: null, record_id: null, field_name: null, outcome: "match", detail: "9 records across 5 modules" },
         ],
       };
+    }
     case "recent-cases":
       return { rows: [{ reference_no: "PRC-20260813-DEMO", last_at: new Date().toISOString(), events: 3, anonymized: 1 }] };
     case "audit-log":
