@@ -18,6 +18,13 @@ import { action, rowsOf, countOf, mapLimit, fn } from "./vibe.js";
 export const CONTACT_MODULE = "tenantcontact";
 export const TENANT_MODULE = "tenant";
 
+/** The org's schema suffixes some system module/field names with "(System)" to
+ *  tell them apart from custom look-alikes — an internal distinction the report
+ *  does not need to surface. */
+function stripSystemSuffix(s) {
+  return typeof s === "string" ? s.replace(/\s*\(system\)\s*$/i, "") : s;
+}
+
 export const F_EMAIL = "email";
 export const F_PHONE = "phone";
 export const F_PRIMARY = "isPrimaryContact";
@@ -78,7 +85,7 @@ export async function sweepSchema({ onProgress } = {}) {
   const modsPayload = await action("facilio-cmms", "list-modules", {});
   const modules = rowsOf(modsPayload)
     .filter((m) => m && typeof m.name === "string")
-    .map((m) => ({ name: m.name, displayName: m.displayName || m.name, isCustom: !!m.isCustom }));
+    .map((m) => ({ name: m.name, displayName: stripSystemSuffix(m.displayName) || m.name, isCustom: !!m.isCustom }));
 
   let done = 0;
   const failures = [];
@@ -94,10 +101,10 @@ export async function sweepSchema({ onProgress } = {}) {
           module: m.name,
           displayName: m.displayName,
           isCustom: m.isCustom,
-          fields: hits.map((f) => ({ name: f.name, displayName: f.displayName || f.name })),
+          fields: hits.map((f) => ({ name: f.name, displayName: stripSystemSuffix(f.displayName) || f.name })),
           allFields: fields.map((f) => ({
             name: f.name,
-            displayName: f.displayName || f.name,
+            displayName: stripSystemSuffix(f.displayName) || f.name,
             dataType: f.dataType,
             lookupModuleName: f.lookupModuleName,
           })),
@@ -267,6 +274,7 @@ function fieldsForLinkedRecord(record, lookupFieldNames, moduleMeta) {
   for (const [k, v] of Object.entries(record)) {
     if (lookupFieldNames.includes(k)) continue;
     if (k === "id" || k === "localId" || k === "serialNumber") continue;
+    if (k === "createdBy" || k === "sysCreatedBy") continue;
     const shown = displayValue(v);
     if (shown === null) continue;
 

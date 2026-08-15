@@ -62,7 +62,6 @@ export default function ModuleBreakdown({ report }) {
       badge: g.isCustom ? "Custom module" : null,
       lookupFields: g.lookupFields,
       records: g.records,
-      noAttachmentSupport: report.modulesWithoutAttachmentSupport?.includes(g.displayName),
     })),
   ];
 
@@ -140,19 +139,6 @@ function RecordList({ group }) {
 
   return (
     <div className="acc">
-      {group.noAttachmentSupport && (
-        <div
-          style={{
-            padding: "var(--spacing-containerLarge) var(--spacing-sectionLarge)",
-            borderBottom: "1px solid var(--colors-borderNeutralBaseSubtle)",
-          }}
-        >
-          <span className="t-cap">
-            Attachments were not scanned for this module — no attachment action is available for it.
-          </span>
-        </div>
-      )}
-
       {group.records.map((r) => {
         const isOpen = openRecord === r.id;
         return (
