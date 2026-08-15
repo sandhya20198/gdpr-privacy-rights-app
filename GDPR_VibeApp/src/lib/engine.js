@@ -400,7 +400,57 @@ export async function discover(email, { onStage, force = false } = {}) {
   const duplicateContacts = contacts.slice(1);
   onStage?.({ key: "identity", state: "done", count: contacts.length });
 
-  /* ---- B. household ------------------------------------------- */
+  /* ---- B. erasure eligibility ---------------------------------- *
+   * Resolved as soon as the person is identified, not after the module sweep:
+   * the Schedule flow answers "may this contact be erased?" the moment you give
+   * it an email, and the Now flow should not make you wait through a 70-module
+   * scan for the same answer. A primary contact needs an expired tenant, anyone
+   * else needs to be inactive.
+   *
+   * The erasure handlers re-check and are the ones that actually enforce it, so
+   * a failure here must not fail the search: the verdict degrades to unknown
+   * and nothing downstream treats that as permission. */
+  onStage?.({ key: "eligibility", state: "active" });
+  let eligibility = null;
+  try {
+    eligibility = await fn("schedule-eligibility", { contactId });
+  } catch (e) {
+    failures.push({ stage: "eligibility", error: String(e?.message ?? e) });
+  }
+  onStage?.({
+    key: "eligibility", state: "done",
+    note: eligibility ? (eligibility.eligible ? "may be erased" : "blocked") : "unknown",
+  });
+
+  /* A contact who fails the criteria stops the search here: no module sweep, no
+   * report, no export. Two verdicts deliberately do NOT stop it —
+   *   already anonymized: the erasure is finished, not refused, and the records
+   *     that reference them still exist;
+   *   unresolved (the check itself failed): the search must not be taken down by
+   *     a hiccup in a read-only check, and the erasure handlers refuse anyway. */
+  if (eligibility && eligibility.eligible === false && !eligibility.alreadyAnonymized) {
+    for (const k of ["household", "linked", "attachments"]) {
+      onStage?.({ key: k, state: "skipped", note: "not run" });
+    }
+    return {
+      found: true,
+      blocked: true,
+      email: clean,
+      contact: {
+        id: contactId,
+        name: displayValue(contact.name),
+        email: String(contact[F_EMAIL] ?? ""),
+      },
+      eligibility,
+      moduleCount: map.moduleCount,
+      lookupModules: map.linked.length,
+      failures,
+      schemaFromCache: map.fromCache,
+      schemaFetchedAt: map.fetchedAt,
+    };
+  }
+
+  /* ---- C. household ------------------------------------------- */
   onStage?.({ key: "household", state: "active" });
   let parent = contact[F_PARENT] && typeof contact[F_PARENT] === "object" ? contact[F_PARENT] : null;
   // An expanded lookup is projected down — its `moduleState` arrives as a bare
@@ -416,7 +466,7 @@ export async function discover(email, { onStage, force = false } = {}) {
   }
   onStage?.({ key: "household", state: "done", count: parent ? 1 : 0 });
 
-  /* ---- C. linked records, in EVERY module the resolver found --- */
+  /* ---- D. linked records, in EVERY module the resolver found --- */
   onStage?.({ key: "linked", state: "active", done: 0, total: map.linked.length });
   const moduleGroups = [];
   let scanned = 0;
@@ -481,7 +531,7 @@ export async function discover(email, { onStage, force = false } = {}) {
   const linkedRecordCount = moduleGroups.reduce((n, g) => n + g.records.length, 0);
   onStage?.({ key: "linked", state: "done", count: linkedRecordCount });
 
-  /* ---- D. attachments on those records ------------------------ */
+  /* ---- E. attachments on those records ------------------------ */
   onStage?.({ key: "attachments", state: "active" });
   const targets = [];
   for (const g of moduleGroups) {
@@ -516,25 +566,6 @@ export async function discover(email, { onStage, force = false } = {}) {
     .map((g) => g.displayName);
 
   onStage?.({ key: "attachments", state: "done", count: attachmentCount });
-
-  /* ---- E. erasure eligibility ---------------------------------- *
-   * Resolved here, during the search, so the report can state up front whether
-   * this person may be erased at all — a primary contact needs an expired
-   * tenant, anyone else needs to be inactive. The same check runs again inside
-   * the erasure handlers, which are the ones that actually enforce it.
-   * A failure here must not fail the search: the verdict degrades to unknown
-   * and the drawer re-checks before it offers to write anything. */
-  onStage?.({ key: "eligibility", state: "active" });
-  let eligibility = null;
-  try {
-    eligibility = await fn("schedule-eligibility", { contactId });
-  } catch (e) {
-    failures.push({ stage: "eligibility", error: String(e?.message ?? e) });
-  }
-  onStage?.({
-    key: "eligibility", state: "done",
-    note: eligibility ? (eligibility.eligible ? "may be erased" : "blocked") : "unknown",
-  });
 
   /* ---- identity + household field tables ---------------------- */
   const contactFields = [
@@ -630,8 +661,8 @@ function isOpenState(state) {
 export const STAGES = [
   { key: "schema", label: "Resolve schema" },
   { key: "identity", label: "Identity" },
+  { key: "eligibility", label: "Erasure eligibility" },
   { key: "household", label: "Household (parent Tenant)" },
   { key: "linked", label: "Linked records" },
   { key: "attachments", label: "Attachments" },
-  { key: "eligibility", label: "Erasure eligibility" },
 ];

@@ -22,6 +22,9 @@ export default function ProgressChecklist({ stages }) {
             meta = `${st.done} / ${st.total}${st.note ? ` · ${st.note}` : ""}`;
           } else if (st.note) meta = st.note;
           else meta = "working…";
+        } else if (st.state === "skipped") {
+          // A stage the search never reached, because the criteria stopped it.
+          meta = st.note ?? "not run";
         }
 
         const pct =
