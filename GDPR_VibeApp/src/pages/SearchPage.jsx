@@ -39,9 +39,9 @@ export default function SearchPage({ onSearch, actor, onScheduled }) {
           </p>
         </div>
 
-        {/* The two flows. "Now" discloses and erases on demand; "Schedule" books
-            a date and performs the erasure unattended. */}
-        <div className="modes" role="tablist" aria-label="Erasure flow">
+        {/* The two flows. "Now" discloses and anonymizes on demand; "Schedule"
+            books a date and anonymizes unattended. */}
+        <div className="modes" role="tablist" aria-label="Anonymization flow">
           <button
             role="tab"
             aria-selected={mode === "now"}

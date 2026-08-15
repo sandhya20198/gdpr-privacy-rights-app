@@ -427,7 +427,7 @@ export async function discover(email, { onStage, force = false } = {}) {
   }
   onStage?.({
     key: "eligibility", state: "done",
-    note: eligibility ? (eligibility.eligible ? "may be erased" : "blocked") : "unknown",
+    note: eligibility ? (eligibility.eligible ? "may be anonymized" : "blocked") : "unknown",
   });
 
   /* A contact who fails the criteria stops the search here: no module sweep, no
@@ -669,7 +669,7 @@ function isOpenState(state) {
 export const STAGES = [
   { key: "schema", label: "Resolve schema" },
   { key: "identity", label: "Identity" },
-  { key: "eligibility", label: "Erasure eligibility" },
+  { key: "eligibility", label: "Anonymization eligibility" },
   { key: "household", label: "Household (parent Tenant)" },
   { key: "linked", label: "Linked records" },
   { key: "attachments", label: "Attachments" },

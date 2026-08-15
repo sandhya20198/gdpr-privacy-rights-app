@@ -63,7 +63,7 @@ export default function ScheduledListPage({ actor, nonce, onChanged }) {
         <div className="row-wrap">
           <div className="stack-s" style={{ minWidth: 0, flex: 1 }}>
             <span className="t-eyebrow">Scheduled</span>
-            <h1 className="t-h20">Booked erasures</h1>
+            <h1 className="t-h20">Booked anonymizations</h1>
           </div>
           <button className="fds-btn fds-btn--secondary" onClick={load} disabled={loading}>
             <IconRefresh /> Refresh
@@ -86,7 +86,7 @@ export default function ScheduledListPage({ actor, nonce, onChanged }) {
           <EmptyState
             icon={<IconCheck size={32} />}
             title="Nothing scheduled"
-            body="Erasures booked from the Schedule flow appear here, with the date each one runs."
+            body="Anonymizations booked from the Schedule flow appear here, with the date each one runs."
           />
         ) : (
           <div className="fds-widget">

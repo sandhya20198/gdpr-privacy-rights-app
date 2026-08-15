@@ -70,7 +70,7 @@ export default function AuditLogPage({ nonce }) {
             <span className="t-eyebrow">Accountability</span>
             <h1 className="t-h20">Audit Log</h1>
             <p className="t-desc" style={{ margin: 0 }}>
-              Every search, export and erasure this portal has performed — keyed on the case reference.
+              Every search, export and anonymization this portal has performed — keyed on the case reference.
             </p>
           </div>
           <button className="fds-btn fds-btn--secondary" onClick={load} disabled={busy}>
@@ -84,7 +84,7 @@ export default function AuditLogPage({ nonce }) {
             <strong>No data-subject identifiers are stored in this log</strong>
             <span className="t-desc">
               There is no column for an email, name or phone number, and none for a previous value —
-              recording the identifier we were asked to erase would defeat the erasure. Accountability
+              recording the identifier we were asked to remove would defeat the purpose. Accountability
               rides on the case reference plus the record id.
             </span>
           </div>
