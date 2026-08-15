@@ -396,6 +396,75 @@ button { font-family: inherit; }
 .fds-table--wide td, .fds-table--wide th { white-space: nowrap; }
 
 /* ============================================================
+   Audit log — toolbar + day-grouped table
+   ============================================================ */
+.log-toolbar {
+  display: flex; align-items: flex-end; gap: var(--spacing-containerXLarge);
+  flex-wrap: wrap;
+}
+.log-toolbar__period { flex: none; }
+/* Pushed to the trailing edge, mirroring the platform's own log toolbar. */
+.log-toolbar__search { flex: 1; min-width: 200px; max-width: 380px; margin-left: auto; }
+
+/* Select — the input token map, with the native chevron swapped for our own so
+   it matches the field's icon weight. */
+.fds-select {
+  position: relative; display: flex; align-items: center;
+  height: 40px;
+  background: var(--colors-backgroundContainer);
+  border: 1px solid var(--colors-borderNeutralBaseLight);
+  border-radius: var(--border-high);
+  transition: border-color .15s;
+}
+.fds-select:hover { border-color: var(--colors-borderNeutralBaseMedium); }
+.fds-select:focus-within { border-color: var(--colors-borderPrimaryFocused); }
+.fds-select select {
+  appearance: none; -webkit-appearance: none;
+  height: 100%; border: none; background: transparent; outline: none; cursor: pointer;
+  padding-inline: var(--spacing-containerXLarge) var(--spacing-sectionXSmall);
+  font-family: var(--typography-bodyReg14-fontFamily);
+  font-size: var(--typography-bodyReg14-fontSize);
+  color: var(--colors-textMain);
+}
+.fds-select > svg {
+  position: absolute; right: var(--spacing-containerXLarge);
+  width: 16px; height: 16px; pointer-events: none;
+  color: var(--colors-iconNeutralLight);
+}
+
+/* One table holds every day, so the columns stay aligned across groups and the
+   whole log scrolls sideways as a unit. Each day is its own <tbody>: a full-bleed
+   date band, its own header row, then that day's events. */
+.fds-table--log .day-head-row td { padding: 0; border-bottom: none; }
+.fds-table--log tbody + tbody .day-head-row td { padding-top: var(--spacing-sectionXSmall); }
+.fds-table--log .day-head-row:hover td { background: transparent; }
+
+/* The one deliberate exception to the alias-token rule: the platform's Audit Log
+   day band is this exact indigo, and no FDS alias resolves to it. Declared once
+   here so the value has a name and never repeats in a rule. It is theme-fixed —
+   the portal pins itself to the light theme, so nothing needs to re-point. */
+:root { --prc-day-band: #656cb6; }
+
+.day-head {
+  display: flex; align-items: center;
+  padding: var(--spacing-containerXLarge) var(--spacing-containerXxLarge);
+  background: var(--prc-day-band);
+  /* Holds its near-white value in both themes, which the band needs — the fill
+     stays saturated either way. */
+  color: var(--colors-textInverseDefault);
+}
+/* The band is as wide as the table, so the date would scroll away with the
+   columns. Pinning it to the scroller keeps every row's day identifiable. */
+.day-head__label {
+  position: sticky; left: var(--spacing-containerXxLarge);
+  font-size: var(--typography-headingMed14-fontSize);
+  font-weight: var(--typography-headingMed14-fontWeight);
+}
+
+/* Column headers repeat per day, so they read as part of that day's block. */
+.fds-table--log .day-cols th { border-bottom: 1px solid var(--colors-borderNeutralBaseSubtler); }
+
+/* ============================================================
    Accordion — module row → record row → field table
    ============================================================ */
 .acc { display: flex; flex-direction: column; }
