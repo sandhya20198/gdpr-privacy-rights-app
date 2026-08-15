@@ -82,7 +82,7 @@ export default function App() {
           referenceNo,
           outcome: result.blocked ? "blocked" : result.found ? "match" : "no-match",
           detail: result.blocked
-            ? "erasure criteria not met — discovery not run"
+            ? "anonymization criteria not met — discovery not run"
             : result.found
               ? `${result.counts.records} records across ${result.counts.modulesWithData} modules`
               : "no tenant contact for the supplied address",

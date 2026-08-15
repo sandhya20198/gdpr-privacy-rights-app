@@ -51,7 +51,7 @@ export default function ReportPage({ report, caseRef, actor, onReset, onRescan, 
 
           <EmptyState
             title="No report was produced"
-            body="This contact does not meet the erasure criteria, so discovery was not run: no modules were swept, and nothing was disclosed or exported. Nothing in their records has changed."
+            body="This contact does not meet the anonymization criteria, so discovery was not run: no modules were swept, and nothing was disclosed or exported. Nothing in their records has changed."
           >
             <div className="row" style={{ marginTop: "var(--spacing-containerLarge)" }}>
               <button className="fds-btn fds-btn--primary" onClick={onReset}>
@@ -111,7 +111,7 @@ export default function ReportPage({ report, caseRef, actor, onReset, onRescan, 
   const noLinked = report.counts.linkedRecords === 0;
 
   /* Resolved during the search, so the answer is on the page before anyone
-     reaches for the erase button. An unresolved verdict is not treated as a
+     reaches for the Anonymize button. An unresolved verdict is not treated as a
      block — the handlers re-check and refuse on their own. */
   const elig = report.eligibility;
   const blocked = !!elig && elig.eligible === false && !report.alreadyAnonymized;
@@ -154,7 +154,7 @@ export default function ReportPage({ report, caseRef, actor, onReset, onRescan, 
 
         {report.alreadyAnonymized && !erased && (
           <InfoBanner title="This contact has already been anonymized">
-            Its email matches the portal&apos;s redaction pattern, so there is nothing further to erase.
+            Its email matches the portal&apos;s redaction pattern, so there is nothing further to anonymize.
           </InfoBanner>
         )}
 
@@ -163,7 +163,7 @@ export default function ReportPage({ report, caseRef, actor, onReset, onRescan, 
             <IconAlert />
             <div className="banner__body">
               <strong>
-                Cannot be erased yet — {report.contact.name}
+                Cannot be anonymized yet — {report.contact.name}
                 {elig.isPrimary ? " is the primary contact" : " is not the primary contact"}
                 {elig.tenantName ? ` of ${elig.tenantName}` : ""}
               </strong>
@@ -178,7 +178,7 @@ export default function ReportPage({ report, caseRef, actor, onReset, onRescan, 
         )}
 
         {elig?.eligible && !report.alreadyAnonymized && !erased && (
-          <InfoBanner title="This contact may be erased">
+          <InfoBanner title="This contact may be anonymized">
             {elig.reason} Use <strong>Anonymize</strong> to do it now, or the Schedule flow to book a date.
           </InfoBanner>
         )}
@@ -186,8 +186,8 @@ export default function ReportPage({ report, caseRef, actor, onReset, onRescan, 
         {report.duplicateContacts?.length > 0 && (
           <InfoBanner title={`${report.duplicateContacts.length + 1} Tenant Contact records share this email`}>
             This report covers <span className="t-mono">#{report.contact.id}</span>. The others (
-            {report.duplicateContacts.map((d) => `#${d.id}`).join(", ")}) need their own case — erasing
-            one does not touch the rest.
+            {report.duplicateContacts.map((d) => `#${d.id}`).join(", ")}) need their own case —
+            anonymizing one does not touch the rest.
           </InfoBanner>
         )}
 
