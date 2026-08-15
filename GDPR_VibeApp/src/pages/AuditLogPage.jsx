@@ -12,7 +12,7 @@ const ACTION_DOT = {
 
 const OUTCOME_DOT = {
   success: "success", complete: "success", match: "success", ok: "success",
-  partial: "warning", skipped: "warning", refused: "warning",
+  partial: "warning", skipped: "warning", refused: "warning", blocked: "warning",
   failed: "error",
   scheduled: "accent", cancelled: "neutral", "no-match": "neutral",
 };

@@ -422,6 +422,34 @@ export async function discover(email, { onStage, force = false } = {}) {
     note: eligibility ? (eligibility.eligible ? "may be erased" : "blocked") : "unknown",
   });
 
+  /* A contact who fails the criteria stops the search here: no module sweep, no
+   * report, no export. Two verdicts deliberately do NOT stop it —
+   *   already anonymized: the erasure is finished, not refused, and the records
+   *     that reference them still exist;
+   *   unresolved (the check itself failed): the search must not be taken down by
+   *     a hiccup in a read-only check, and the erasure handlers refuse anyway. */
+  if (eligibility && eligibility.eligible === false && !eligibility.alreadyAnonymized) {
+    for (const k of ["household", "linked", "attachments"]) {
+      onStage?.({ key: k, state: "skipped", note: "not run" });
+    }
+    return {
+      found: true,
+      blocked: true,
+      email: clean,
+      contact: {
+        id: contactId,
+        name: displayValue(contact.name),
+        email: String(contact[F_EMAIL] ?? ""),
+      },
+      eligibility,
+      moduleCount: map.moduleCount,
+      lookupModules: map.linked.length,
+      failures,
+      schemaFromCache: map.fromCache,
+      schemaFetchedAt: map.fetchedAt,
+    };
+  }
+
   /* ---- C. household ------------------------------------------- */
   onStage?.({ key: "household", state: "active" });
   let parent = contact[F_PARENT] && typeof contact[F_PARENT] === "object" ? contact[F_PARENT] : null;

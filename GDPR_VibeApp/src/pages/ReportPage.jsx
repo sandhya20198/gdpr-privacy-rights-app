@@ -23,6 +23,51 @@ export default function ReportPage({ report, caseRef, actor, onReset, onRescan, 
     }
   }
 
+  /* ---------- the criteria stopped the search ---------- */
+  if (report.blocked) {
+    const e = report.eligibility ?? {};
+    return (
+      <div className="wrap wrap--narrow">
+        <div className="stack">
+          <div className="stack-s">
+            <span className="t-eyebrow">Case {caseRef}</span>
+            <h1 className="t-h20">{report.contact?.name}</h1>
+          </div>
+
+          <div className="banner banner--warning">
+            <IconAlert />
+            <div className="banner__body">
+              <strong>
+                Search stopped — {e.isPrimary ? "primary contact" : "not the primary contact"}
+                {e.tenantName ? ` of ${e.tenantName}` : ""}
+              </strong>
+              <span className="t-desc">{e.reason}</span>
+              <span className="t-cap">
+                Contact status: {e.contactState || "unknown"}
+                {e.tenantId ? ` · Tenant status: ${e.tenantState || "unknown"}` : ""}
+              </span>
+            </div>
+          </div>
+
+          <EmptyState
+            title="No report was produced"
+            body="This contact does not meet the erasure criteria, so discovery was not run: no modules were swept, and nothing was disclosed or exported. Nothing in their records has changed."
+          >
+            <div className="row" style={{ marginTop: "var(--spacing-containerLarge)" }}>
+              <button className="fds-btn fds-btn--primary" onClick={onReset}>
+                <IconSearch /> New search
+              </button>
+            </div>
+          </EmptyState>
+
+          <span className="t-cap">
+            The search was still recorded against case {caseRef} with a blocked outcome.
+          </span>
+        </div>
+      </div>
+    );
+  }
+
   /* ---------- no contact for that address ---------- */
   if (!report.found) {
     return (

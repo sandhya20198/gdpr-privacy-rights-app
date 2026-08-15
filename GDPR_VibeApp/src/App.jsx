@@ -52,7 +52,11 @@ export default function App() {
     if (!mock) return;
     import("./lib/devFixture.js").then(({ FIXTURE, FIXTURE_EDGE }) => {
       setCaseRef("PRC-20260813-DEMO");
-      setReport(mock === "edge" ? FIXTURE_EDGE : FIXTURE);
+      setReport(
+        mock === "edge" ? FIXTURE_EDGE
+          : mock === "blocked" ? { ...FIXTURE, blocked: true, moduleGroups: undefined, counts: undefined }
+          : FIXTURE
+      );
       setPhase("report");
     });
   }, []);
@@ -76,10 +80,12 @@ export default function App() {
           actorEmail: actor,
           action: "SEARCH",
           referenceNo,
-          outcome: result.found ? "match" : "no-match",
-          detail: result.found
-            ? `${result.counts.records} records across ${result.counts.modulesWithData} modules`
-            : "no tenant contact for the supplied address",
+          outcome: result.blocked ? "blocked" : result.found ? "match" : "no-match",
+          detail: result.blocked
+            ? "erasure criteria not met — discovery not run"
+            : result.found
+              ? `${result.counts.records} records across ${result.counts.modulesWithData} modules`
+              : "no tenant contact for the supplied address",
         });
         setAuditNonce((n) => n + 1);
       } catch (_) { /* a failed audit write must not hide the result */ }
